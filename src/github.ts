@@ -1288,7 +1288,9 @@ export class GitHub {
     defaultBranch: string
   ): Promise<ChangeSet> {
     const changes = new Map();
-    for (const update of updates) {
+    // Fetch all file contents in parallel to improve performance,
+    // especially for monorepos with many files to update.
+    const promises = updates.map(async update => {
       let content: GitHubFileContents | undefined;
       try {
         content = await this.getFileContentsOnBranch(
@@ -1301,7 +1303,7 @@ export class GitHub {
         // to the next update, otherwise create the file.
         if (!update.createIfMissing) {
           this.logger.warn(`file ${update.path} did not exist`);
-          continue;
+          return null; // Return null to filter out later
         }
       }
       const contentText = content
@@ -1312,13 +1314,26 @@ export class GitHub {
         this.logger
       );
       if (updatedContent) {
-        changes.set(update.path, {
-          content: updatedContent,
-          originalContent: content?.parsedContent || null,
-          mode: content?.mode || DEFAULT_FILE_MODE,
-        });
+        return {
+          path: update.path,
+          change: {
+            content: updatedContent,
+            originalContent: content?.parsedContent || null,
+            mode: content?.mode || DEFAULT_FILE_MODE,
+          },
+        };
+      }
+      return null;
+    });
+
+    const results = await Promise.all(promises);
+
+    for (const result of results) {
+      if (result) {
+        changes.set(result.path, result.change);
       }
     }
+
     return changes;
   }
 
