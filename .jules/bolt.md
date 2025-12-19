@@ -1,0 +1,3 @@
+## 2024-05-20 - Robust Error Handling in Performance Optimizations
+**Learning:** When implementing performance optimizations that change the shape of data returned on different code paths (e.g., success vs. error), it's critical to ensure that error handling is robust. Returning partially-formed or unexpected data structures on failure can lead to severe downstream crashes.
+**Action:** Always ensure that error paths in performance-optimized code throw explicit exceptions rather than returning malformed data. This prevents silent failures and makes the system more resilient.
