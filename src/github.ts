@@ -346,7 +346,7 @@ export class GitHub {
       }
       commits.push(commit);
     }
-    return commits;
+    return this.hydrateCommits(commits, options);
   }
 
   /**
@@ -371,16 +371,16 @@ export class GitHub {
     while (results < maxResults) {
       const response: CommitHistory | null = await this.mergeCommitsGraphQL(
         targetBranch,
-        cursor,
-        options
+        cursor
       );
-      // no response usually means that the branch can't be found
       if (!response) {
         break;
       }
-      for (let i = 0; i < response.data.length; i++) {
+
+      const hydratedCommits = await this.hydrateCommits(response.data, options);
+      for (let i = 0; i < hydratedCommits.length; i++) {
         results += 1;
-        yield response.data[i];
+        yield hydratedCommits[i];
       }
       if (!response.pageInfo.hasNextPage) {
         break;
@@ -391,65 +391,36 @@ export class GitHub {
 
   private async mergeCommitsGraphQL(
     targetBranch: string,
-    cursor?: string,
-    options: CommitIteratorOptions = {}
+    cursor?: string
   ): Promise<CommitHistory | null> {
     this.logger.debug(
-      `Fetching merge commits on branch ${targetBranch} with cursor: ${cursor}`
+      `Fetching commits on branch ${targetBranch} with cursor: ${cursor}`
     );
-    const query = `query pullRequestsSince($owner: String!, $repo: String!, $num: Int!, $maxFilesChanged: Int, $targetBranch: String!, $cursor: String) {
-      repository(owner: $owner, name: $repo) {
-        ref(qualifiedName: $targetBranch) {
-          target {
-            ... on Commit {
-              history(first: $num, after: $cursor) {
-                nodes {
-                  associatedPullRequests(first: 10) {
-                    nodes {
-                      number
-                      title
-                      baseRefName
-                      headRefName
-                      labels(first: 10) {
-                        nodes {
-                          name
-                        }
-                      }
-                      body
-                      mergeCommit {
-                        oid
-                      }
-                      files(first: $maxFilesChanged) {
-                        nodes {
-                          path
-                        }
-                        pageInfo {
-                          endCursor
-                          hasNextPage
-                        }
-                      }
-                    }
+    const query = `query commitsSince($owner: String!, $repo: String!, $num: Int!, $targetBranch: String!, $cursor: String) {
+        repository(owner: $owner, name: $repo) {
+          ref(qualifiedName: $targetBranch) {
+            target {
+              ... on Commit {
+                history(first: $num, after: $cursor) {
+                  nodes {
+                    oid
                   }
-                  sha: oid
-                  message
-                }
-                pageInfo {
-                  hasNextPage
-                  endCursor
+                  pageInfo {
+                    hasNextPage
+                    endCursor
+                  }
                 }
               }
             }
           }
         }
-      }
-    }`;
+      }`;
     const params = {
       cursor,
       owner: this.repository.owner,
       repo: this.repository.repo,
-      num: 25,
+      num: 100,
       targetBranch,
-      maxFilesChanged: 100, // max is 100
     };
     const response = await this.graphqlRequest({
       query,
@@ -464,7 +435,6 @@ export class GitHub {
       return null;
     }
 
-    // if the branch does exist, return null
     if (!response.repository?.ref) {
       this.logger.warn(
         `Could not find commits for branch ${targetBranch} - it likely does not exist.`
@@ -472,84 +442,192 @@ export class GitHub {
       return null;
     }
     const history = response.repository.ref.target.history;
-    const commits = (history.nodes || []) as GraphQLCommit[];
-    // Count the number of pull requests associated with each merge commit. This is
-    // used in the next step to make sure we only find pull requests with a
-    // merge commit that contain 1 merged commit.
-    const mergeCommitCount: Record<string, number> = {};
-    for (const commit of commits) {
-      for (const pr of commit.associatedPullRequests.nodes) {
-        if (pr.mergeCommit?.oid) {
-          mergeCommitCount[pr.mergeCommit.oid] ??= 0;
-          mergeCommitCount[pr.mergeCommit.oid]++;
-        }
-      }
-    }
+    const commits = (history.nodes || []) as {
+      oid: string;
+    }[];
     const commitData: Commit[] = [];
     for (const graphCommit of commits) {
       const commit: Commit = {
-        sha: graphCommit.sha,
-        message: graphCommit.message,
+        sha: graphCommit.oid,
+        message: '',
       };
-      const mergePullRequest = graphCommit.associatedPullRequests.nodes.find(
-        pr => {
-          return (
-            // Only match the pull request with a merge commit if there is a
-            // single merged commit in the PR. This means merge commits and squash
-            // merges will be matched, but rebase merged PRs will only be matched
-            // if they contain a single commit. This is so PRs that are rebased
-            // and merged will have ßSfiles backfilled from each commit instead of
-            // the whole PR.
-            pr.mergeCommit &&
-            pr.mergeCommit.oid === graphCommit.sha &&
-            mergeCommitCount[pr.mergeCommit.oid] === 1
-          );
-        }
-      );
-      const pullRequest =
-        mergePullRequest || graphCommit.associatedPullRequests.nodes[0];
-      if (pullRequest) {
-        commit.pullRequest = {
-          sha: commit.sha,
-          number: pullRequest.number,
-          baseBranchName: pullRequest.baseRefName,
-          headBranchName: pullRequest.headRefName,
-          mergeCommitOid: pullRequest.mergeCommit?.oid,
-          title: pullRequest.title,
-          body: pullRequest.body,
-          labels: pullRequest.labels.nodes.map(node => node.name),
-          files: (pullRequest.files?.nodes || []).map(node => node.path),
-        };
-      }
-      if (mergePullRequest) {
-        if (
-          mergePullRequest.files?.pageInfo?.hasNextPage &&
-          options.backfillFiles
-        ) {
-          this.logger.info(
-            `PR #${mergePullRequest.number} has many files, backfilling`
-          );
-          commit.files = await this.getCommitFiles(graphCommit.sha);
-        } else {
-          // We cannot directly fetch files on commits via graphql, only provide file
-          // information for commits with associated pull requests
-          commit.files = (mergePullRequest.files?.nodes || []).map(
-            node => node.path
-          );
-        }
-      } else if (options.backfillFiles) {
-        // In this case, there is no squashed merge commit. This could be a simple
-        // merge commit, a rebase merge commit, or a direct commit to the branch.
-        // Fallback to fetching the list of commits from the REST API. In the future
-        // we can perhaps lazy load these.
-        commit.files = await this.getCommitFiles(graphCommit.sha);
-      }
       commitData.push(commit);
     }
     return {
       pageInfo: history.pageInfo,
       data: commitData,
     };
+  }
+
+  private async hydrateCommits(
+    commits: Commit[],
+    options: CommitIteratorOptions = {}
+  ): Promise<Commit[]> {
+    if (commits.length === 0) {
+      return [];
+    }
+    this.logger.debug(`hydrating ${commits.length} commits`);
+    const hydratedCommits: Commit[] = [];
+
+    const batchSize = 25;
+    for (let i = 0; i < commits.length; i += batchSize) {
+      const batch = commits.slice(i, i + batchSize);
+      // build a multi-part query
+      let query =
+        'query pullRequestsSince($owner: String!, $repo: String!, $maxFilesChanged: Int) {\n';
+      query += 'repository(owner: $owner, name: $repo) {\n';
+      for (let j = 0; j < batch.length; j++) {
+        query += `  commit_${j}: object(oid: "${batch[j].sha}") {\n`;
+        query += '    ... on Commit {\n';
+        query += `
+      associatedPullRequests(first: 10) {
+        nodes {
+          number
+          title
+          baseRefName
+          headRefName
+          labels(first: 10) {
+            nodes {
+              name
+            }
+          }
+          body
+          mergeCommit {
+            oid
+          }
+          files(first: $maxFilesChanged) {
+            nodes {
+              path
+            }
+            pageInfo {
+              endCursor
+              hasNextPage
+            }
+          }
+        }
+      }
+      sha: oid
+      message
+      `;
+        query += '    }\n';
+        query += '  }\n';
+      }
+      query += '}\n';
+      query += '}';
+
+      const params = {
+        owner: this.repository.owner,
+        repo: this.repository.repo,
+        maxFilesChanged: 100, // max is 100
+      };
+      const response = await this.graphqlRequest({
+        query,
+        ...params,
+      });
+
+      if (!response || !response.repository) {
+        this.logger.warn(
+          `Did not receive a response for query: ${query}`,
+          params
+        );
+        // if the request fails, throw an error
+        const requestError = new RequestError(`GraphQL query failed: ${query}`, 500, {
+          request: {
+            method: 'POST',
+            url: '',
+            headers: {},
+          },
+          response: {
+            status: 500,
+            url: '',
+            headers: {},
+            data: {},
+          },
+        });
+        throw new GitHubAPIError(requestError);
+      }
+
+      const mergeCommitCount: Record<string, number> = {};
+      for (let j = 0; j < batch.length; j++) {
+        const graphCommit = response.repository[`commit_${j}`] as
+          | GraphQLCommit
+          | undefined;
+        if (!graphCommit) continue;
+        for (const pr of graphCommit.associatedPullRequests.nodes) {
+          if (pr.mergeCommit?.oid) {
+            mergeCommitCount[pr.mergeCommit.oid] ??= 0;
+            mergeCommitCount[pr.mergeCommit.oid]++;
+          }
+        }
+      }
+
+      const fileBackfillPromises: Promise<void>[] = [];
+      for (let j = 0; j < batch.length; j++) {
+        const commit = batch[j];
+        const graphCommit = response.repository[`commit_${j}`] as
+          | GraphQLCommit
+          | undefined;
+        if (!graphCommit) {
+          hydratedCommits.push(commit);
+          continue;
+        }
+
+        commit.message = graphCommit.message;
+
+        const mergePullRequest = graphCommit.associatedPullRequests.nodes.find(
+          pr => {
+            return (
+              pr.mergeCommit &&
+              pr.mergeCommit.oid === graphCommit.sha &&
+              mergeCommitCount[pr.mergeCommit.oid] === 1
+            );
+          }
+        );
+        const pullRequest =
+          mergePullRequest || graphCommit.associatedPullRequests.nodes[0];
+        if (pullRequest) {
+          commit.pullRequest = {
+            sha: commit.sha,
+            number: pullRequest.number,
+            baseBranchName: pullRequest.baseRefName,
+            headBranchName: pullRequest.headRefName,
+            mergeCommitOid: pullRequest.mergeCommit?.oid,
+            title: pullRequest.title,
+            body: pullRequest.body,
+            labels: pullRequest.labels.nodes.map(node => node.name),
+            files: (pullRequest.files?.nodes || []).map(node => node.path),
+          };
+        }
+        if (mergePullRequest) {
+          if (
+            mergePullRequest.files?.pageInfo?.hasNextPage &&
+            options.backfillFiles
+          ) {
+            this.logger.info(
+              `PR #${mergePullRequest.number} has many files, backfilling`
+            );
+            fileBackfillPromises.push(
+              this.getCommitFiles(graphCommit.sha).then(files => {
+                commit.files = files;
+              })
+            );
+          } else {
+            commit.files = (mergePullRequest.files?.nodes || []).map(
+              node => node.path
+            );
+          }
+        } else if (options.backfillFiles) {
+          fileBackfillPromises.push(
+            this.getCommitFiles(graphCommit.sha).then(files => {
+              commit.files = files;
+            })
+          );
+        }
+        hydratedCommits.push(commit);
+      }
+      await Promise.all(fileBackfillPromises);
+    }
+    return hydratedCommits;
   }
 
   /**
