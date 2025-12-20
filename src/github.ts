@@ -114,6 +114,7 @@ interface GraphQLPullRequest {
       path: string;
     }[];
     pageInfo: {
+      endCursor?: string;
       hasNextPage: boolean;
     };
   };
@@ -522,6 +523,10 @@ export class GitHub {
         };
       }
       if (mergePullRequest) {
+        const files = (mergePullRequest.files?.nodes || []).map(
+          node => node.path
+        );
+        let cursor = mergePullRequest.files?.pageInfo?.endCursor;
         if (
           mergePullRequest.files?.pageInfo?.hasNextPage &&
           options.backfillFiles
@@ -529,14 +534,16 @@ export class GitHub {
           this.logger.info(
             `PR #${mergePullRequest.number} has many files, backfilling`
           );
-          commit.files = await this.getCommitFiles(graphCommit.sha);
-        } else {
-          // We cannot directly fetch files on commits via graphql, only provide file
-          // information for commits with associated pull requests
-          commit.files = (mergePullRequest.files?.nodes || []).map(
-            node => node.path
-          );
+          while (cursor) {
+            const response = await this.getFilesGraphQL(
+              mergePullRequest.number,
+              cursor
+            );
+            files.push(...response.files);
+            cursor = response.cursor;
+          }
         }
+        commit.files = files;
       } else if (options.backfillFiles) {
         // In this case, there is no squashed merge commit. This could be a simple
         // merge commit, a rebase merge commit, or a direct commit to the branch.
@@ -587,6 +594,55 @@ export class GitHub {
     }
     return files;
   });
+
+  /**
+   * Get the list of file paths modified in a given pull request.
+   * This is a helper for backfilling files for a pull request that
+   * has more than 100 files changed.
+   *
+   * @param {number} prNumber The pull request number
+   * @param {string} cursor The graphql cursor
+   * @returns {{files: string[], cursor?: string}} File paths and next cursor
+   * @throws {GitHubAPIControllerError} on an API error
+   */
+  private async getFilesGraphQL(
+    prNumber: number,
+    cursor?: string
+  ): Promise<{files: string[]; cursor?: string}> {
+    this.logger.debug(
+      `Fetching files for PR #${prNumber} with cursor: ${cursor}`
+    );
+    const response = await this.graphqlRequest({
+      query: `query prFiles($owner: String!, $repo: String!, $prNumber: Int!, $cursor: String) {
+        repository(owner: $owner, name: $repo) {
+          pullRequest(number: $prNumber) {
+            files(first: 100, after: $cursor) {
+              nodes {
+                path
+              }
+              pageInfo {
+                endCursor
+                hasNextPage
+              }
+            }
+          }
+        }
+      }`,
+      cursor,
+      owner: this.repository.owner,
+      repo: this.repository.repo,
+      prNumber,
+    });
+    const files =
+      response?.repository?.pullRequest?.files?.nodes.map(
+        (node: {path: string}) => node.path
+      ) || [];
+    const pageInfo = response?.repository?.pullRequest?.files?.pageInfo;
+    return {
+      files,
+      cursor: pageInfo?.hasNextPage ? pageInfo.endCursor : undefined,
+    };
+  }
 
   private graphqlRequest = wrapAsync(
     async (
