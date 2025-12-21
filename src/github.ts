@@ -114,6 +114,7 @@ interface GraphQLPullRequest {
       path: string;
     }[];
     pageInfo: {
+      endCursor?: string;
       hasNextPage: boolean;
     };
   };
@@ -146,6 +147,14 @@ interface PullRequestHistory {
     endCursor: string | undefined;
   };
   data: PullRequest[];
+}
+
+interface PullRequestFileHistory {
+  pageInfo: {
+    hasNextPage: boolean;
+    endCursor: string | undefined;
+  };
+  data: string[];
 }
 
 interface ReleaseHistory {
@@ -522,6 +531,11 @@ export class GitHub {
         };
       }
       if (mergePullRequest) {
+        // We cannot directly fetch files on commits via graphql, only provide file
+        // information for commits with associated pull requests
+        const files: string[] = (mergePullRequest.files?.nodes || []).map(
+          (node: {path: string}) => node.path
+        );
         if (
           mergePullRequest.files?.pageInfo?.hasNextPage &&
           options.backfillFiles
@@ -529,14 +543,24 @@ export class GitHub {
           this.logger.info(
             `PR #${mergePullRequest.number} has many files, backfilling`
           );
-          commit.files = await this.getCommitFiles(graphCommit.sha);
-        } else {
-          // We cannot directly fetch files on commits via graphql, only provide file
-          // information for commits with associated pull requests
-          commit.files = (mergePullRequest.files?.nodes || []).map(
-            node => node.path
-          );
+          let cursor: string | undefined =
+            mergePullRequest.files?.pageInfo?.endCursor;
+          while (cursor) {
+            const response = await this.pullRequestFilesGraphQL(
+              mergePullRequest.number,
+              cursor
+            );
+            if (!response) {
+              break;
+            }
+            files.push(...response.data);
+            if (!response.pageInfo.hasNextPage) {
+              break;
+            }
+            cursor = response.pageInfo.endCursor;
+          }
         }
+        commit.files = files;
       } else if (options.backfillFiles) {
         // In this case, there is no squashed merge commit. This could be a simple
         // merge commit, a rebase merge commit, or a direct commit to the branch.
@@ -549,6 +573,57 @@ export class GitHub {
     return {
       pageInfo: history.pageInfo,
       data: commitData,
+    };
+  }
+
+  private async pullRequestFilesGraphQL(
+    pullNumber: number,
+    cursor?: string
+  ): Promise<PullRequestFileHistory | null> {
+    this.logger.debug(
+      `Fetching pull request files for #${pullNumber} with cursor: ${cursor}`
+    );
+    const query = `query pullRequestFiles($owner: String!, $repo: String!, $num: Int!, $cursor: String) {
+      repository(owner: $owner, name: $repo) {
+        pullRequest(number: $num) {
+          files(first: 100, after: $cursor) {
+            nodes {
+              path
+            }
+            pageInfo {
+              endCursor
+              hasNextPage
+            }
+          }
+        }
+      }
+    }`;
+    const params = {
+      cursor,
+      owner: this.repository.owner,
+      repo: this.repository.repo,
+      num: pullNumber,
+    };
+    const response = await this.graphqlRequest({
+      query,
+      ...params,
+    });
+
+    if (!response) {
+      this.logger.warn(
+        `Did not receive a response for query: ${query}`,
+        params
+      );
+      return null;
+    }
+    if (!response.repository?.pullRequest) {
+      this.logger.warn(`Could not find PR #${pullNumber}`);
+      return null;
+    }
+    const files = response.repository.pullRequest.files;
+    return {
+      pageInfo: files.pageInfo,
+      data: files.nodes.map((node: {path: string}) => node.path),
     };
   }
 
