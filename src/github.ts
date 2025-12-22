@@ -115,6 +115,7 @@ interface GraphQLPullRequest {
     }[];
     pageInfo: {
       hasNextPage: boolean;
+      endCursor?: string;
     };
   };
 }
@@ -522,6 +523,11 @@ export class GitHub {
         };
       }
       if (mergePullRequest) {
+        // We cannot directly fetch files on commits via graphql, only provide file
+        // information for commits with associated pull requests
+        commit.files = (mergePullRequest.files?.nodes || []).map(
+          node => node.path
+        );
         if (
           mergePullRequest.files?.pageInfo?.hasNextPage &&
           options.backfillFiles
@@ -529,12 +535,12 @@ export class GitHub {
           this.logger.info(
             `PR #${mergePullRequest.number} has many files, backfilling`
           );
-          commit.files = await this.getCommitFiles(graphCommit.sha);
-        } else {
-          // We cannot directly fetch files on commits via graphql, only provide file
-          // information for commits with associated pull requests
-          commit.files = (mergePullRequest.files?.nodes || []).map(
-            node => node.path
+          // TODO: combine this with the initial graphql query.
+          commit.files = commit.files.concat(
+            await this.getAllPullRequestFiles(
+              mergePullRequest.number,
+              mergePullRequest.files.pageInfo.endCursor
+            )
           );
         }
       } else if (options.backfillFiles) {
@@ -550,6 +556,57 @@ export class GitHub {
       pageInfo: history.pageInfo,
       data: commitData,
     };
+  }
+
+  private async getAllPullRequestFiles(
+    pullRequestNumber: number,
+    startCursor?: string
+  ): Promise<string[]> {
+    const files: string[] = [];
+    let cursor: string | undefined = startCursor;
+    let hasNextPage = true;
+    this.logger.debug(
+      `Fetching pull request files for #${pullRequestNumber} with cursor: ${cursor}`
+    );
+    const query = `query pullRequestFiles($owner: String!, $repo: String!, $num: Int!, $cursor: String) {
+      repository(owner: $owner, name: $repo) {
+        pullRequest(number: $num) {
+          files(first: 100, after: $cursor) {
+            nodes {
+              path
+            }
+            pageInfo {
+              endCursor
+              hasNextPage
+            }
+          }
+        }
+      }
+    }`;
+    while (hasNextPage) {
+      const params = {
+        cursor,
+        owner: this.repository.owner,
+        repo: this.repository.repo,
+        num: pullRequestNumber,
+      };
+      const response = await this.graphqlRequest({
+        query,
+        ...params,
+      });
+
+      const responseFiles =
+        response?.repository?.pullRequest?.files?.nodes?.map(
+          (node: {path: string}) => node.path
+        ) || [];
+      files.push(...responseFiles);
+      hasNextPage =
+        response?.repository?.pullRequest?.files?.pageInfo?.hasNextPage ||
+        false;
+      cursor = response?.repository?.pullRequest?.files?.pageInfo?.endCursor;
+    }
+
+    return files;
   }
 
   /**
