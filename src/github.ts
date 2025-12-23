@@ -132,6 +132,22 @@ interface GraphQLRelease {
   isDraft: boolean;
 }
 
+interface GraphQLFiles {
+  nodes: {path: string}[];
+  pageInfo: {
+    endCursor: string;
+    hasNextPage: boolean;
+  };
+}
+
+interface GraphQLPullRequestFiles {
+  repository: {
+    pullRequest: {
+      files: GraphQLFiles;
+    };
+  };
+}
+
 interface CommitHistory {
   pageInfo: {
     hasNextPage: boolean;
@@ -527,9 +543,13 @@ export class GitHub {
           options.backfillFiles
         ) {
           this.logger.info(
-            `PR #${mergePullRequest.number} has many files, backfilling`
+            `PR #${mergePullRequest.number} has many files, backfilling with GraphQL pagination`
           );
-          commit.files = await this.getCommitFiles(graphCommit.sha);
+          // Instead of falling back to the REST API, which can be slow, we'll
+          // use the GraphQL API with pagination to fetch all the files.
+          commit.files = await this.getAllPullRequestFilesGraphQL(
+            mergePullRequest.number
+          );
         } else {
           // We cannot directly fetch files on commits via graphql, only provide file
           // information for commits with associated pull requests
@@ -587,6 +607,58 @@ export class GitHub {
     }
     return files;
   });
+
+  private async getAllPullRequestFilesGraphQL(
+    prNumber: number
+  ): Promise<string[]> {
+    const files: string[] = [];
+    let cursor: string | undefined = undefined;
+    let hasNextPage = true;
+
+    this.logger.debug(`Fetching all files for PR #${prNumber}`);
+    while (hasNextPage) {
+      const response: GraphQLPullRequestFiles | void =
+        await this.graphqlRequest({
+          query: `query pullRequestFiles($owner: String!, $repo: String!, $prNumber: Int!, $cursor: String) {
+          repository(owner: $owner, name: $repo) {
+            pullRequest(number: $prNumber) {
+              files(first: 100, after: $cursor) {
+                nodes {
+                  path
+                }
+                pageInfo {
+                  endCursor
+                  hasNextPage
+                }
+              }
+            }
+          }
+        }`,
+          owner: this.repository.owner,
+          repo: this.repository.repo,
+          prNumber,
+          cursor,
+        });
+
+      if (!response?.repository?.pullRequest?.files) {
+        this.logger.warn(`Could not find files for PR #${prNumber}`);
+        // stop trying to fetch files
+        break;
+      }
+
+      const responseFiles: GraphQLFiles =
+        response.repository.pullRequest.files;
+      (responseFiles.nodes || []).forEach((file: {path: string}) => {
+        files.push(file.path);
+      });
+
+      hasNextPage = responseFiles.pageInfo.hasNextPage;
+      cursor = responseFiles.pageInfo.endCursor;
+    }
+
+    this.logger.debug(`Found ${files.length} files for PR #${prNumber}`);
+    return files;
+  }
 
   private graphqlRequest = wrapAsync(
     async (
