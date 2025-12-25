@@ -1,0 +1,15 @@
+{
+  "repository": {
+    "pullRequest": {
+      "files": {
+        "nodes": [
+          {"path": "file100.txt"}
+        ],
+        "pageInfo": {
+          "endCursor": "ENDOFCURSOR2",
+          "hasNextPage": false
+        }
+      }
+    }
+  }
+}
