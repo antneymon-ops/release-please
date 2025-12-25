@@ -521,10 +521,22 @@ describe('GitHub', () => {
       req.done();
     });
 
-    it('backfills commit files for pull requests with lots of files', async () => {
+    it('backfills commit files for pull requests with lots of files using graphql', async () => {
       const graphql = JSON.parse(
         readFileSync(
           resolve(fixturesPath, 'commits-since-many-files.json'),
+          'utf8'
+        )
+      );
+      const graphql2 = JSON.parse(
+        readFileSync(
+          resolve(fixturesPath, 'pull-request-files-page-1.json'),
+          'utf8'
+        )
+      );
+      const graphql3 = JSON.parse(
+        readFileSync(
+          resolve(fixturesPath, 'pull-request-files-page-2.json'),
           'utf8'
         )
       );
@@ -533,10 +545,14 @@ describe('GitHub', () => {
         .reply(200, {
           data: graphql,
         })
-        .get(
-          '/repos/fake/fake/commits/e6daec403626c9987c7af0d97b34f324cd84320a'
-        )
-        .reply(200, {files: [{filename: 'abc'}]});
+        .post('/graphql')
+        .reply(200, {
+          data: graphql2,
+        })
+        .post('/graphql')
+        .reply(200, {
+          data: graphql3,
+        });
       const targetBranch = 'main';
       const commitsSinceSha = await github.commitsSince(
         targetBranch,
@@ -547,6 +563,7 @@ describe('GitHub', () => {
         {backfillFiles: true}
       );
       expect(commitsSinceSha.length).to.eql(1);
+      expect(commitsSinceSha[0].files?.length).to.eql(101);
       snapshot(commitsSinceSha);
       req.done();
     });
