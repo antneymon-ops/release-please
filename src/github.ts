@@ -114,7 +114,24 @@ interface GraphQLPullRequest {
       path: string;
     }[];
     pageInfo: {
+      endCursor?: string;
       hasNextPage: boolean;
+    };
+  };
+}
+
+interface GraphQLPullRequestFiles {
+  repository: {
+    pullRequest: {
+      files: {
+        nodes: {
+          path: string;
+        }[];
+        pageInfo: {
+          hasNextPage: boolean;
+          endCursor: string;
+        };
+      };
     };
   };
 }
@@ -522,20 +539,24 @@ export class GitHub {
         };
       }
       if (mergePullRequest) {
-        if (
-          mergePullRequest.files?.pageInfo?.hasNextPage &&
-          options.backfillFiles
-        ) {
-          this.logger.info(
-            `PR #${mergePullRequest.number} has many files, backfilling`
-          );
-          commit.files = await this.getCommitFiles(graphCommit.sha);
-        } else {
-          // We cannot directly fetch files on commits via graphql, only provide file
-          // information for commits with associated pull requests
-          commit.files = (mergePullRequest.files?.nodes || []).map(
-            node => node.path
-          );
+        // Optimization: an expensive part of the process is fetching the files for
+        // each pull request, to avoid this, we only backfill files if the backfillFiles
+        // option is enabled.
+        if (options.backfillFiles) {
+          if (mergePullRequest.files?.pageInfo?.hasNextPage) {
+            this.logger.info(
+              `PR #${mergePullRequest.number} has many files, backfilling`
+            );
+            // Fallback to paginating all the files for the pull request,
+            // rather than using the REST API.
+            commit.files = await this.getPullRequestFiles(
+              mergePullRequest.number
+            );
+          } else {
+            commit.files = (mergePullRequest.files?.nodes || []).map(
+              node => node.path
+            );
+          }
         }
       } else if (options.backfillFiles) {
         // In this case, there is no squashed merge commit. This could be a simple
@@ -550,6 +571,49 @@ export class GitHub {
       pageInfo: history.pageInfo,
       data: commitData,
     };
+  }
+
+  /**
+   * Get the list of file paths modified in a given pull request.
+   *
+   * @param {number} prNumber The pull request number
+   * @returns {string[]} File paths
+   * @throws {GitHubAPIError} on an API error
+   */
+  async getPullRequestFiles(prNumber: number): Promise<string[]> {
+    this.logger.debug(`Fetching file list for pr #${prNumber}`);
+    const files: string[] = [];
+    let cursor;
+    let hasNextPage = true;
+    while (hasNextPage) {
+      const response: GraphQLPullRequestFiles = await this.graphqlRequest({
+        query: `query pullRequestFiles($owner: String!, $repo: String!, $prNumber: Int!, $cursor: String) {
+          repository(owner: $owner, name: $repo) {
+            pullRequest(number: $prNumber) {
+              files(first: 100, after: $cursor) {
+                nodes {
+                  path
+                }
+                pageInfo {
+                  hasNextPage
+                  endCursor
+                }
+              }
+            }
+          }
+        }`,
+        cursor,
+        owner: this.repository.owner,
+        repo: this.repository.repo,
+        prNumber,
+      });
+      for (const file of response.repository.pullRequest.files.nodes) {
+        files.push(file.path);
+      }
+      hasNextPage = response.repository.pullRequest.files.pageInfo.hasNextPage;
+      cursor = response.repository.pullRequest.files.pageInfo.endCursor;
+    }
+    return files;
   }
 
   /**
