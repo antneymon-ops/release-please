@@ -114,7 +114,24 @@ interface GraphQLPullRequest {
       path: string;
     }[];
     pageInfo: {
+      endCursor: string;
       hasNextPage: boolean;
+    };
+  };
+}
+
+interface GraphQLPullRequestFiles {
+  repository: {
+    pullRequest: {
+      files: {
+        nodes: {
+          path: string;
+        }[];
+        pageInfo: {
+          endCursor: string;
+          hasNextPage: boolean;
+        };
+      };
     };
   };
 }
@@ -455,7 +472,6 @@ export class GitHub {
       query,
       ...params,
     });
-
     if (!response) {
       this.logger.warn(
         `Did not receive a response for query: ${query}`,
@@ -463,8 +479,6 @@ export class GitHub {
       );
       return null;
     }
-
-    // if the branch does exist, return null
     if (!response.repository?.ref) {
       this.logger.warn(
         `Could not find commits for branch ${targetBranch} - it likely does not exist.`
@@ -473,9 +487,6 @@ export class GitHub {
     }
     const history = response.repository.ref.target.history;
     const commits = (history.nodes || []) as GraphQLCommit[];
-    // Count the number of pull requests associated with each merge commit. This is
-    // used in the next step to make sure we only find pull requests with a
-    // merge commit that contain 1 merged commit.
     const mergeCommitCount: Record<string, number> = {};
     for (const commit of commits) {
       for (const pr of commit.associatedPullRequests.nodes) {
@@ -494,12 +505,6 @@ export class GitHub {
       const mergePullRequest = graphCommit.associatedPullRequests.nodes.find(
         pr => {
           return (
-            // Only match the pull request with a merge commit if there is a
-            // single merged commit in the PR. This means merge commits and squash
-            // merges will be matched, but rebase merged PRs will only be matched
-            // if they contain a single commit. This is so PRs that are rebased
-            // and merged will have ßSfiles backfilled from each commit instead of
-            // the whole PR.
             pr.mergeCommit &&
             pr.mergeCommit.oid === graphCommit.sha &&
             mergeCommitCount[pr.mergeCommit.oid] === 1
@@ -522,26 +527,24 @@ export class GitHub {
         };
       }
       if (mergePullRequest) {
+        // This is an optimization to fetch all files from a pull request in a single
+        // GraphQL query, rather than falling back to the REST API.
         if (
           mergePullRequest.files?.pageInfo?.hasNextPage &&
           options.backfillFiles
         ) {
           this.logger.info(
-            `PR #${mergePullRequest.number} has many files, backfilling`
+            `PR #${mergePullRequest.number} has many files, backfilling with GraphQL pagination`
           );
-          commit.files = await this.getCommitFiles(graphCommit.sha);
+          commit.files = await this.getAllPullRequestFilesGraphQL(
+            mergePullRequest.number
+          );
         } else {
-          // We cannot directly fetch files on commits via graphql, only provide file
-          // information for commits with associated pull requests
           commit.files = (mergePullRequest.files?.nodes || []).map(
             node => node.path
           );
         }
       } else if (options.backfillFiles) {
-        // In this case, there is no squashed merge commit. This could be a simple
-        // merge commit, a rebase merge commit, or a direct commit to the branch.
-        // Fallback to fetching the list of commits from the REST API. In the future
-        // we can perhaps lazy load these.
         commit.files = await this.getCommitFiles(graphCommit.sha);
       }
       commitData.push(commit);
@@ -550,6 +553,56 @@ export class GitHub {
       pageInfo: history.pageInfo,
       data: commitData,
     };
+  }
+
+  /**
+   * Fetches all files for a pull request using GraphQL pagination.
+   * @param {number} pullRequestNumber The pull request number.
+   * @returns {string[]} A list of file paths.
+   */
+  private async getAllPullRequestFilesGraphQL(
+    pullRequestNumber: number
+  ): Promise<string[]> {
+    const files: string[] = [];
+    let cursor: string | undefined = undefined;
+    let hasNextPage = true;
+    while (hasNextPage) {
+      const query = `query pullRequestFiles($owner: String!, $repo: String!, $pullRequestNumber: Int!, $cursor: String) {
+        repository(owner: $owner, name: $repo) {
+          pullRequest(number: $pullRequestNumber) {
+            files(first: 100, after: $cursor) {
+              nodes {
+                path
+              }
+              pageInfo {
+                endCursor
+                hasNextPage
+              }
+            }
+          }
+        }
+      }`;
+      const response: GraphQLPullRequestFiles = await this.graphqlRequest({
+        query,
+        owner: this.repository.owner,
+        repo: this.repository.repo,
+        pullRequestNumber,
+        cursor,
+      });
+      const pullRequest = response.repository.pullRequest;
+      if (pullRequest?.files?.nodes) {
+        for (const file of pullRequest.files.nodes) {
+          files.push(file.path);
+        }
+      }
+      if (pullRequest?.files?.pageInfo) {
+        hasNextPage = pullRequest.files.pageInfo.hasNextPage;
+        cursor = pullRequest.files.pageInfo.endCursor;
+      } else {
+        hasNextPage = false;
+      }
+    }
+    return files;
   }
 
   /**
