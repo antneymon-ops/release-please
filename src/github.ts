@@ -132,6 +132,62 @@ interface GraphQLRelease {
   isDraft: boolean;
 }
 
+interface GraphQLMergeCommitsResponse {
+  repository?: {
+    ref?: {
+      target: {
+        history: {
+          nodes: GraphQLCommit[];
+          pageInfo: {
+            hasNextPage: boolean;
+            endCursor: string;
+          };
+        };
+      };
+    };
+  };
+}
+
+interface GraphQLPullRequestsResponse {
+  repository?: {
+    pullRequests?: {
+      nodes: GraphQLPullRequest[];
+      pageInfo: {
+        endCursor: string;
+        hasNextPage: boolean;
+      };
+    };
+  };
+}
+
+interface GraphQLReleasesResponse {
+  repository: {
+    releases: {
+      nodes: GraphQLRelease[];
+      pageInfo: {
+        endCursor: string;
+        hasNextPage: boolean;
+      };
+    };
+  };
+}
+
+interface GraphQLPullRequestFiles {
+  repository: {
+    pullRequest: {
+      files: {
+        nodes: {
+          path: string;
+        }[];
+        pageInfo: {
+          endCursor: string;
+          hasNextPage: boolean;
+        };
+      };
+    };
+  };
+}
+
 interface CommitHistory {
   pageInfo: {
     hasNextPage: boolean;
@@ -451,7 +507,7 @@ export class GitHub {
       targetBranch,
       maxFilesChanged: 100, // max is 100
     };
-    const response = await this.graphqlRequest({
+    const response = await this.graphqlRequest<GraphQLMergeCommitsResponse>({
       query,
       ...params,
     });
@@ -526,10 +582,14 @@ export class GitHub {
           mergePullRequest.files?.pageInfo?.hasNextPage &&
           options.backfillFiles
         ) {
+          // The GraphQL API for files is paginated, fetching subsequent pages
+          // is more efficient than falling back to the REST API.
           this.logger.info(
-            `PR #${mergePullRequest.number} has many files, backfilling`
+            `PR #${mergePullRequest.number} has many files, backfilling with GraphQL pagination`
           );
-          commit.files = await this.getCommitFiles(graphCommit.sha);
+          commit.files = await this.getAllPullRequestFilesGraphQL(
+            mergePullRequest.number
+          );
         } else {
           // We cannot directly fetch files on commits via graphql, only provide file
           // information for commits with associated pull requests
@@ -588,22 +648,84 @@ export class GitHub {
     return files;
   });
 
+  /**
+   * Get all files for a pull request using GraphQL pagination.
+   *
+   * @param {number} pullNumber The pull request number
+   * @returns {string[]} File paths
+   * @throws {GitHubAPIError} on an API error
+   */
+  private async getAllPullRequestFilesGraphQL(
+    pullNumber: number
+  ): Promise<string[]> {
+    const allFiles: string[] = [];
+    let cursor: string | undefined = undefined;
+    let hasNextPage = true;
+
+    while (hasNextPage) {
+      this.logger.debug(
+        `Fetching files for PR #${pullNumber} with cursor: ${cursor}`
+      );
+      const response: GraphQLPullRequestFiles | undefined =
+        await this.graphqlRequest({
+          query: `query pullRequestFiles($owner: String!, $repo: String!, $pullNumber: Int!, $cursor: String) {
+          repository(owner: $owner, name: $repo) {
+            pullRequest(number: $pullNumber) {
+              files(first: 100, after: $cursor) {
+                nodes {
+                  path
+                }
+                pageInfo {
+                  endCursor
+                  hasNextPage
+                }
+              }
+            }
+          }
+        }`,
+          owner: this.repository.owner,
+          repo: this.repository.repo,
+          pullNumber,
+          cursor,
+        });
+
+      if (!response?.repository?.pullRequest?.files) {
+        this.logger.warn(`Could not find files for PR #${pullNumber}`);
+        break;
+      }
+
+      const filesNode: {
+        nodes: {path: string}[];
+        pageInfo: {endCursor: string; hasNextPage: boolean};
+      } = response.repository.pullRequest.files;
+      const files: string[] = filesNode.nodes.map(
+        (node: {path: string}) => node.path
+      );
+      allFiles.push(...files);
+
+      hasNextPage = filesNode.pageInfo.hasNextPage;
+      cursor = filesNode.pageInfo.endCursor;
+    }
+
+    return allFiles;
+  }
+
   private graphqlRequest = wrapAsync(
-    async (
+    async <T>(
       opts: {
         [key: string]: string | number | null | undefined;
       },
       options?: {
         maxRetries?: number;
       }
-    ) => {
+    ): Promise<T | undefined> => {
       let maxRetries = options?.maxRetries ?? 5;
       let seconds = 1;
       while (maxRetries >= 0) {
         try {
           const response = await this.graphql(opts);
           if (response) {
-            return response;
+            return response as T;
           }
           this.logger.trace('no GraphQL response, retrying');
         } catch (err) {
@@ -765,7 +887,7 @@ export class GitHub {
     this.logger.debug(
       `Fetching ${states} pull requests on branch ${targetBranch} with cursor ${cursor}`
     );
-    const response = await this.graphqlRequest({
+    const response = await this.graphqlRequest<GraphQLPullRequestsResponse>({
       query: `query mergedPullRequests($owner: String!, $repo: String!, $num: Int!, $maxFilesChanged: Int, $targetBranch: String!, $states: [PullRequestState!], $cursor: String) {
         repository(owner: $owner, name: $repo) {
           pullRequests(first: $num, after: $cursor, baseRefName: $targetBranch, states: $states, orderBy: {field: CREATED_AT, direction: DESC}) {
@@ -868,7 +990,7 @@ export class GitHub {
     cursor?: string
   ): Promise<ReleaseHistory | null> {
     this.logger.debug(`Fetching releases with cursor ${cursor}`);
-    const response = await this.graphqlRequest({
+    const response = await this.graphqlRequest<GraphQLReleasesResponse>({
       query: `query releases($owner: String!, $repo: String!, $num: Int!, $cursor: String) {
         repository(owner: $owner, name: $repo) {
           releases(first: $num, after: $cursor, orderBy: {field: CREATED_AT, direction: DESC}) {
@@ -896,7 +1018,7 @@ export class GitHub {
       repo: this.repository.repo,
       num: 25,
     });
-    if (!response.repository.releases.nodes.length) {
+    if (!response || !response.repository.releases.nodes.length) {
       this.logger.warn('Could not find releases.');
       return null;
     }

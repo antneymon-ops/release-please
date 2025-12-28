@@ -528,15 +528,27 @@ describe('GitHub', () => {
           'utf8'
         )
       );
+      const graphqlPaginated1 = JSON.parse(
+        readFileSync(
+          resolve(fixturesPath, 'graphql-paginated-files-1.json'),
+          'utf8'
+        )
+      );
+      const graphqlPaginated2 = JSON.parse(
+        readFileSync(
+          resolve(fixturesPath, 'graphql-paginated-files-2.json'),
+          'utf8'
+        )
+      );
       req
         .post('/graphql')
         .reply(200, {
           data: graphql,
         })
-        .get(
-          '/repos/fake/fake/commits/e6daec403626c9987c7af0d97b34f324cd84320a'
-        )
-        .reply(200, {files: [{filename: 'abc'}]});
+        .post('/graphql')
+        .reply(200, graphqlPaginated1)
+        .post('/graphql')
+        .reply(200, graphqlPaginated2);
       const targetBranch = 'main';
       const commitsSinceSha = await github.commitsSince(
         targetBranch,

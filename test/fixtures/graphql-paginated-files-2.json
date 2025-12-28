@@ -1,0 +1,19 @@
+{
+  "data": {
+    "repository": {
+      "pullRequest": {
+        "files": {
+          "nodes": [
+            {
+              "path": "file2.txt"
+            }
+          ],
+          "pageInfo": {
+            "endCursor": "Mg",
+            "hasNextPage": false
+          }
+        }
+      }
+    }
+  }
+}
