@@ -620,7 +620,6 @@ export class Manifest {
     this.logger.debug(`commit search depth: ${this.commitSearchDepth}`);
     const commitGenerator = this.github.mergeCommitIterator(this.targetBranch, {
       maxResults: this.commitSearchDepth,
-      backfillFiles: true,
     });
     const releaseShas = new Set(Object.values(releaseShasByPath));
     this.logger.debug(releaseShas);

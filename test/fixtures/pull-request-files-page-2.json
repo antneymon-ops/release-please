@@ -1,0 +1,17 @@
+{
+  "repository": {
+    "pullRequest": {
+      "files": {
+        "nodes": [
+          {
+            "path": "def"
+          }
+        ],
+        "pageInfo": {
+          "endCursor": "MQ",
+          "hasNextPage": false
+        }
+      }
+    }
+  }
+}
