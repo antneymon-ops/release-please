@@ -513,8 +513,7 @@ describe('GitHub', () => {
         commit => {
           // this commit is the 2nd most recent
           return commit.sha === 'b29149f890e6f76ee31ed128585744d4c598924c';
-        },
-        {backfillFiles: true}
+        }
       );
       expect(commitsSinceSha.length).to.eql(1);
       snapshot(commitsSinceSha);
@@ -543,8 +542,7 @@ describe('GitHub', () => {
         commit => {
           // this commit is the 2nd most recent
           return commit.sha === 'b29149f890e6f76ee31ed128585744d4c598924c';
-        },
-        {backfillFiles: true}
+        }
       );
       expect(commitsSinceSha.length).to.eql(1);
       snapshot(commitsSinceSha);
@@ -574,12 +572,43 @@ describe('GitHub', () => {
         commit => {
           // this commit is the 3rd most recent
           return commit.sha === '2b4e0b3be2e231cd87cc44c411bd8f84b4587ab5';
-        },
-        {backfillFiles: true}
+        }
       );
       expect(commitsSinceSha.length).to.eql(2);
       expect(commitsSinceSha[0].files).to.eql(['abc']);
       expect(commitsSinceSha[1].files).to.eql(['def']);
+      snapshot(commitsSinceSha);
+      req.done();
+    });
+
+    it('paginates through pull request files', async () => {
+      const graphql = JSON.parse(
+        readFileSync(
+          resolve(fixturesPath, 'commits-since-many-files.json'),
+          'utf8'
+        )
+      );
+      const filesPage2 = JSON.parse(
+        readFileSync(resolve(fixturesPath, 'pull-request-files-page-2.json'), 'utf8')
+      );
+      req
+        .post('/graphql')
+        .reply(200, {
+          data: graphql,
+        })
+        .post('/graphql')
+        .reply(200, {
+          data: filesPage2,
+        });
+      const targetBranch = 'main';
+      const commitsSinceSha = await github.commitsSince(
+        targetBranch,
+        commit => {
+          return commit.sha === 'b29149f890e6f76ee31ed128585744d4c598924c';
+        }
+      );
+      expect(commitsSinceSha.length).to.eql(1);
+      expect(commitsSinceSha[0].files?.length).to.eql(2);
       snapshot(commitsSinceSha);
       req.done();
     });
@@ -603,34 +632,6 @@ describe('GitHub', () => {
       }
       expect(commits).lengthOf(2);
       snapshot(commits!);
-      req.done();
-    });
-  });
-
-  describe('getCommitFiles', () => {
-    it('fetches the list of files', async () => {
-      req
-        .get('/repos/fake/fake/commits/abc123')
-        .reply(200, {files: [{filename: 'abc'}]});
-      const files = await github.getCommitFiles('abc123');
-      expect(files).to.eql(['abc']);
-      req.done();
-    });
-
-    it('paginates', async () => {
-      req
-        .get('/repos/fake/fake/commits/abc123')
-        .reply(
-          200,
-          {files: [{filename: 'abc'}]},
-          {
-            link: '<https://api.github.com/repos/fake/fake/commits/abc123?page=2>; rel="next", <https://api.github.com/repos/fake/fake/commits/abc123?page=2>; rel="last"',
-          }
-        )
-        .get('/repos/fake/fake/commits/abc123?page=2')
-        .reply(200, {files: [{filename: 'def'}]});
-      const files = await github.getCommitFiles('abc123');
-      expect(files).to.eql(['abc', 'def']);
       req.done();
     });
   });
