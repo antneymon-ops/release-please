@@ -522,31 +522,58 @@ describe('GitHub', () => {
     });
 
     it('backfills commit files for pull requests with lots of files', async () => {
-      const graphql = JSON.parse(
+      const graphqlCommits = JSON.parse(
         readFileSync(
           resolve(fixturesPath, 'commits-since-many-files.json'),
           'utf8'
         )
       );
-      req
-        .post('/graphql')
-        .reply(200, {
-          data: graphql,
-        })
-        .get(
-          '/repos/fake/fake/commits/e6daec403626c9987c7af0d97b34f324cd84320a'
+      const graphqlFiles = JSON.parse(
+        readFileSync(
+          resolve(fixturesPath, 'pull-request-files-page-2.json'),
+          'utf8'
         )
-        .reply(200, {files: [{filename: 'abc'}]});
+      );
+
+      // Mock the first GraphQL call to fetch commits.
+      // This response indicates that the PR has more files to fetch.
+      req
+        .post('/graphql', body => {
+          return body.query.includes('associatedPullRequests');
+        })
+        .reply(200, {
+          data: graphqlCommits,
+        });
+
+      // Mock the second GraphQL call to fetch the next page of files.
+      req
+        .post('/graphql', body => {
+          return body.query.includes('pullRequest(number: $num)');
+        })
+        .reply(200, {
+          data: graphqlFiles,
+        });
+
       const targetBranch = 'main';
       const commitsSinceSha = await github.commitsSince(
         targetBranch,
         commit => {
-          // this commit is the 2nd most recent
+          // Stop after the commit with the multi-page file PR.
           return commit.sha === 'b29149f890e6f76ee31ed128585744d4c598924c';
         },
         {backfillFiles: true}
       );
+
       expect(commitsSinceSha.length).to.eql(1);
+      const commit = commitsSinceSha[0];
+      expect(commit.files).to.not.be.undefined;
+      // The first page of files from commits-since-many-files.json has 1 file ('README.md').
+      // The second page of files from pull-request-files-page-2.json has 1 file ('file101.txt').
+      // Total files should be 2.
+      expect(commit.files!.length).to.eql(2);
+      expect(commit.files).to.include('README.md');
+      expect(commit.files).to.include('file101.txt');
+
       snapshot(commitsSinceSha);
       req.done();
     });
