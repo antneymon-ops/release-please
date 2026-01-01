@@ -115,7 +115,18 @@ interface GraphQLPullRequest {
     }[];
     pageInfo: {
       hasNextPage: boolean;
+      endCursor: string;
     };
+  };
+}
+
+interface GraphQLPullRequestFiles {
+  nodes: {
+    path: string;
+  }[];
+  pageInfo: {
+    hasNextPage: boolean;
+    endCursor: string;
   };
 }
 
@@ -522,20 +533,36 @@ export class GitHub {
         };
       }
       if (mergePullRequest) {
+        commit.files = (mergePullRequest.files?.nodes || []).map(
+          node => node.path
+        );
         if (
           mergePullRequest.files?.pageInfo?.hasNextPage &&
           options.backfillFiles
         ) {
           this.logger.info(
-            `PR #${mergePullRequest.number} has many files, backfilling`
+            `PR #${mergePullRequest.number} has many files, backfilling with GraphQL pagination`
           );
-          commit.files = await this.getCommitFiles(graphCommit.sha);
-        } else {
-          // We cannot directly fetch files on commits via graphql, only provide file
-          // information for commits with associated pull requests
-          commit.files = (mergePullRequest.files?.nodes || []).map(
-            node => node.path
-          );
+          let cursor: string | undefined =
+            mergePullRequest.files.pageInfo.endCursor;
+          while (cursor) {
+            const response: GraphQLPullRequestFiles | null =
+              await this.pullRequestFilesGraphQL(
+                mergePullRequest.number,
+                cursor
+              );
+            if (!response) {
+              break;
+            }
+            commit.files.push(
+              ...response.nodes.map((node: {path: string}) => node.path)
+            );
+            if (response.pageInfo.hasNextPage) {
+              cursor = response.pageInfo.endCursor;
+            } else {
+              cursor = undefined;
+            }
+          }
         }
       } else if (options.backfillFiles) {
         // In this case, there is no squashed merge commit. This could be a simple
@@ -550,6 +577,50 @@ export class GitHub {
       pageInfo: history.pageInfo,
       data: commitData,
     };
+  }
+
+  private async pullRequestFilesGraphQL(
+    pullNumber: number,
+    cursor?: string
+  ): Promise<GraphQLPullRequestFiles | null> {
+    this.logger.debug(
+      `Fetching files for PR #${pullNumber} with cursor: ${cursor}`
+    );
+    const query = `query pullRequestFiles($owner: String!, $repo: String!, $num: Int!, $cursor: String) {
+      repository(owner: $owner, name: $repo) {
+        pullRequest(number: $num) {
+          files(first: 100, after: $cursor) {
+            nodes {
+              path
+            }
+            pageInfo {
+              endCursor
+              hasNextPage
+            }
+          }
+        }
+      }
+    }`;
+    const params = {
+      cursor,
+      owner: this.repository.owner,
+      repo: this.repository.repo,
+      num: pullNumber,
+    };
+    const response = await this.graphqlRequest({
+      query,
+      ...params,
+    });
+
+    if (!response) {
+      this.logger.warn(
+        `Did not receive a response for query: ${query}`,
+        params
+      );
+      return null;
+    }
+
+    return response.repository?.pullRequest?.files;
   }
 
   /**
