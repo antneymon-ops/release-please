@@ -96,6 +96,7 @@ interface GraphQLCommit {
 }
 
 interface GraphQLPullRequest {
+  id: string;
   number: number;
   title: string;
   body: string;
@@ -115,6 +116,7 @@ interface GraphQLPullRequest {
     }[];
     pageInfo: {
       hasNextPage: boolean;
+      endCursor?: string;
     };
   };
 }
@@ -406,6 +408,7 @@ export class GitHub {
                 nodes {
                   associatedPullRequests(first: 10) {
                     nodes {
+                      id
                       number
                       title
                       baseRefName
@@ -522,21 +525,51 @@ export class GitHub {
         };
       }
       if (mergePullRequest) {
-        if (
-          mergePullRequest.files?.pageInfo?.hasNextPage &&
-          options.backfillFiles
-        ) {
+        // Optimization: if the pull request has more than 100 files,
+        // instead of falling back to the REST API, we'll use GraphQL
+        // pagination to fetch all of them. This is more efficient as it
+        // avoids the N+1 query problem and reduces the number of API calls.
+        const files: string[] = (mergePullRequest.files?.nodes || []).map(
+          node => node.path
+        );
+        let cursor = mergePullRequest.files?.pageInfo?.endCursor;
+        let hasNextPage = mergePullRequest.files?.pageInfo?.hasNextPage;
+        while (hasNextPage && cursor) {
           this.logger.info(
-            `PR #${mergePullRequest.number} has many files, backfilling`
+            `PR #${mergePullRequest.number} has many files, paginating`
           );
-          commit.files = await this.getCommitFiles(graphCommit.sha);
-        } else {
-          // We cannot directly fetch files on commits via graphql, only provide file
-          // information for commits with associated pull requests
-          commit.files = (mergePullRequest.files?.nodes || []).map(
-            node => node.path
-          );
+          const filesResponse = await this.graphqlRequest({
+            query: `query pullRequestFiles($id: ID!, $cursor: String) {
+              node(id: $id) {
+                ... on PullRequest {
+                  files(first: 100, after: $cursor) {
+                    nodes {
+                      path
+                    }
+                    pageInfo {
+                      endCursor
+                      hasNextPage
+                    }
+                  }
+                }
+              }
+            }`,
+            id: mergePullRequest.id,
+            cursor,
+          });
+          const pageFiles = filesResponse?.node?.files;
+          if (pageFiles) {
+            files.push(
+              ...pageFiles.nodes.map((node: {path: string}) => node.path)
+            );
+            cursor = pageFiles.pageInfo.endCursor;
+            hasNextPage = pageFiles.pageInfo.hasNextPage;
+          } else {
+            // Something went wrong, break out of the loop
+            hasNextPage = false;
+          }
         }
+        commit.files = files;
       } else if (options.backfillFiles) {
         // In this case, there is no squashed merge commit. This could be a simple
         // merge commit, a rebase merge commit, or a direct commit to the branch.
