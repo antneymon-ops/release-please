@@ -132,6 +132,22 @@ interface GraphQLRelease {
   isDraft: boolean;
 }
 
+interface GraphQLPullRequestFiles {
+  repository?: {
+    pullRequest?: {
+      files: {
+        nodes: {
+          path: string;
+        }[];
+        pageInfo: {
+          endCursor: string;
+          hasNextPage: boolean;
+        };
+      };
+    };
+  };
+}
+
 interface CommitHistory {
   pageInfo: {
     hasNextPage: boolean;
@@ -529,7 +545,9 @@ export class GitHub {
           this.logger.info(
             `PR #${mergePullRequest.number} has many files, backfilling`
           );
-          commit.files = await this.getCommitFiles(graphCommit.sha);
+          commit.files = await this.getAllPullRequestFiles(
+            mergePullRequest.number
+          );
         } else {
           // We cannot directly fetch files on commits via graphql, only provide file
           // information for commits with associated pull requests
@@ -587,6 +605,56 @@ export class GitHub {
     }
     return files;
   });
+
+  // Switched to a paginated GraphQL query for PR files to improve performance
+  // and reliability for very large pull requests, avoiding potential REST API
+  // timeouts.
+  private async getAllPullRequestFiles(prNumber: number): Promise<string[]> {
+    const files: string[] = [];
+    let cursor: string | undefined = undefined;
+    while (true) {
+      this.logger.debug(
+        `Fetching files for PR #${prNumber} with cursor: ${cursor}`
+      );
+      const response: GraphQLPullRequestFiles = await this.graphqlRequest({
+        query: `query pullRequestFiles($owner: String!, $repo: String!, $prNumber: Int!, $cursor: String) {
+          repository(owner: $owner, name: $repo) {
+            pullRequest(number: $prNumber) {
+              files(first: 100, after: $cursor) {
+                nodes {
+                  path
+                }
+                pageInfo {
+                  endCursor
+                  hasNextPage
+                }
+              }
+            }
+          }
+        }`,
+        owner: this.repository.owner,
+        repo: this.repository.repo,
+        prNumber,
+        cursor,
+      });
+
+      if (!response?.repository?.pullRequest?.files) {
+        this.logger.warn(`Could not find files for PR #${prNumber}`);
+        break;
+      }
+
+      const prFiles = response.repository.pullRequest.files;
+      for (const file of prFiles.nodes) {
+        files.push(file.path);
+      }
+
+      if (!prFiles.pageInfo.hasNextPage) {
+        break;
+      }
+      cursor = prFiles.pageInfo.endCursor;
+    }
+    return files;
+  }
 
   private graphqlRequest = wrapAsync(
     async (
