@@ -56,9 +56,7 @@ exports['GitHub commitsSince backfills commit files for pull requests with lots 
       "labels": [],
       "files": []
     },
-    "files": [
-      "abc"
-    ]
+    "files": []
   }
 ]
 

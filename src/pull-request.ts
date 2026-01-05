@@ -20,6 +20,6 @@ export interface PullRequest {
   readonly title: string;
   readonly body: string;
   readonly labels: string[];
-  readonly files: string[];
+  files: string[];
   readonly sha?: string;
 }
