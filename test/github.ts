@@ -635,6 +635,58 @@ describe('GitHub', () => {
     });
   });
 
+  describe('getPullRequestFiles', () => {
+    it('paginates through files', async () => {
+      const files1 = [];
+      for (let i = 0; i < 100; i++) {
+        files1.push({path: `path/${i}.txt`});
+      }
+      const graphql1 = {
+        repository: {
+          pullRequest: {
+            files: {
+              nodes: files1,
+              pageInfo: {
+                hasNextPage: true,
+                endCursor: 'CURSOR',
+              },
+            },
+          },
+        },
+      };
+      const files2 = [];
+      for (let i = 100; i < 150; i++) {
+        files2.push({path: `path/${i}.txt`});
+      }
+      const graphql2 = {
+        repository: {
+          pullRequest: {
+            files: {
+              nodes: files2,
+              pageInfo: {
+                hasNextPage: false,
+                endCursor: 'CURSOR_2',
+              },
+            },
+          },
+        },
+      };
+      req
+        .post('/graphql')
+        .reply(200, {
+          data: graphql1,
+        })
+        .post('/graphql')
+        .reply(200, {
+          data: graphql2,
+        });
+      const files = await github.getPullRequestFiles(123);
+      expect(files).lengthOf(150);
+      expect(files[149]).to.eql('path/149.txt');
+      req.done();
+    });
+  });
+
   describe('releaseIterator', () => {
     it('iterates through releases', async () => {
       const graphql = JSON.parse(
