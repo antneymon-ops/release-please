@@ -156,6 +156,22 @@ interface ReleaseHistory {
   data: GitHubRelease[];
 }
 
+interface GraphQLPullRequestFiles {
+  repository: {
+    pullRequest: {
+      files: {
+        nodes: {
+          path: string;
+        }[];
+        pageInfo: {
+          hasNextPage: boolean;
+          endCursor: string;
+        };
+      };
+    };
+  };
+}
+
 interface CommitIteratorOptions {
   maxResults?: number;
   backfillFiles?: boolean;
@@ -230,6 +246,52 @@ export class GitHub {
     } else {
       return new HttpsProxyAgent(`https://${host}:${port}`);
     }
+  }
+
+  /**
+   * Get the list of file paths modified in a pull request.
+   *
+   * @param {number} number The pull request number
+   * @returns {string[]} File paths
+   * @throws {GitHubAPIError} on an API error
+   */
+  async getPullRequestFiles(number: number): Promise<string[]> {
+    this.logger.info(`Fetching files for pull request #${number}`);
+    const files: string[] = [];
+    let cursor: string | undefined = undefined;
+    while (true) {
+      const response: GraphQLPullRequestFiles = await this.graphqlRequest({
+        query: `query pullRequestFiles($owner: String!, $repo: String!, $number: Int!, $cursor: String) {
+          repository(owner: $owner, name: $repo) {
+            pullRequest(number: $number) {
+              files(first: 100, after: $cursor) {
+                nodes {
+                  path
+                }
+                pageInfo {
+                  hasNextPage
+                  endCursor
+                }
+              }
+            }
+          }
+        }`,
+        cursor,
+        owner: this.repository.owner,
+        repo: this.repository.repo,
+        number,
+      });
+      const pullRequest = response.repository.pullRequest;
+      for (const file of pullRequest.files.nodes) {
+        files.push(file.path);
+      }
+      if (!pullRequest.files.pageInfo.hasNextPage) {
+        break;
+      }
+      cursor = pullRequest.files.pageInfo.endCursor;
+    }
+    this.logger.info(`Found ${files.length} files for PR #${number}`);
+    return files;
   }
 
   /**
@@ -529,7 +591,12 @@ export class GitHub {
           this.logger.info(
             `PR #${mergePullRequest.number} has many files, backfilling`
           );
-          commit.files = await this.getCommitFiles(graphCommit.sha);
+          // Perf: Use GraphQL pagination to fetch all files for a pull request.
+          // This avoids falling back to the REST API which is less efficient
+          // for large pull requests.
+          commit.files = await this.getPullRequestFiles(
+            mergePullRequest.number
+          );
         } else {
           // We cannot directly fetch files on commits via graphql, only provide file
           // information for commits with associated pull requests
