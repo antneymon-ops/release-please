@@ -26,7 +26,7 @@ import {GH_API_URL, GitHub, GitHubRelease} from '../src/github';
 import {PullRequest} from '../src/pull-request';
 import {TagName} from '../src/util/tag-name';
 import {Version} from '../src/version';
-import assert = require('assert');
+import * as assert from 'assert';
 import {
   DuplicateReleaseError,
   GitHubAPIError,
@@ -581,6 +581,43 @@ describe('GitHub', () => {
       expect(commitsSinceSha[0].files).to.eql(['abc']);
       expect(commitsSinceSha[1].files).to.eql(['def']);
       snapshot(commitsSinceSha);
+      req.done();
+    });
+
+    it('paginates pull request files', async () => {
+      const graphql1 = JSON.parse(
+        readFileSync(
+          resolve(fixturesPath, 'commits-since-paginate-files-1.json'),
+          'utf8'
+        )
+      );
+      const graphql2 = JSON.parse(
+        readFileSync(
+          resolve(fixturesPath, 'commits-since-paginate-files-2.json'),
+          'utf8'
+        )
+      );
+      req
+        .post('/graphql')
+        .reply(200, {
+          data: graphql1,
+        })
+        .post('/graphql')
+        .reply(200, {
+          data: graphql2,
+        });
+      const targetBranch = 'main';
+      const commits = await github.commitsSince(
+        targetBranch,
+        commit => {
+          return commit.sha === 'b29149f890e6f76ee31ed128585744d4c598924c';
+        },
+        {backfillFiles: true}
+      );
+      expect(commits.length).to.eql(1);
+      const files = commits[0].files ?? [];
+      expect(files.length).to.eql(101);
+      expect(files[100]).to.eql('file-101.txt');
       req.done();
     });
   });
