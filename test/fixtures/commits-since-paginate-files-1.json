@@ -1,0 +1,156 @@
+{
+  "repository": {
+    "ref": {
+      "target": {
+        "history": {
+          "nodes": [
+            {
+              "associatedPullRequests": {
+                "nodes": [
+                  {
+                    "number": 42,
+                    "title": "feat: a really big PR",
+                    "baseRefName": "main",
+                    "headRefName": "really-big-pr",
+                    "labels": {
+                      "nodes": [
+                        {
+                          "name": "autoplay"
+                        }
+                      ]
+                    },
+                    "body": "feat: a really big PR",
+                    "mergeCommit": {
+                      "oid": "e6daec403626c9987c7af0d97b34f324cd84320a"
+                    },
+                    "files": {
+                      "nodes": [
+                        { "path": "file-1.txt" },
+                        { "path": "file-2.txt" },
+                        { "path": "file-3.txt" },
+                        { "path": "file-4.txt" },
+                        { "path": "file-5.txt" },
+                        { "path": "file-6.txt" },
+                        { "path": "file-7.txt" },
+                        { "path": "file-8.txt" },
+                        { "path": "file-9.txt" },
+                        { "path": "file-10.txt" },
+                        { "path": "file-11.txt" },
+                        { "path": "file-12.txt" },
+                        { "path": "file-13.txt" },
+                        { "path": "file-14.txt" },
+                        { "path": "file-15.txt" },
+                        { "path": "file-16.txt" },
+                        { "path": "file-17.txt" },
+                        { "path": "file-18.txt" },
+                        { "path": "file-19.txt" },
+                        { "path": "file-20.txt" },
+                        { "path": "file-21.txt" },
+                        { "path": "file-22.txt" },
+                        { "path": "file-23.txt" },
+                        { "path": "file-24.txt" },
+                        { "path": "file-25.txt" },
+                        { "path": "file-26.txt" },
+                        { "path": "file-27.txt" },
+                        { "path": "file-28.txt" },
+                        { "path": "file-29.txt" },
+                        { "path": "file-30.txt" },
+                        { "path": "file-31.txt" },
+                        { "path": "file-32.txt" },
+                        { "path": "file-33.txt" },
+                        { "path": "file-34.txt" },
+                        { "path": "file-35.txt" },
+                        { "path": "file-36.txt" },
+                        { "path": "file-37.txt" },
+                        { "path": "file-38.txt" },
+                        { "path": "file-39.txt" },
+                        { "path": "file-40.txt" },
+                        { "path": "file-41.txt" },
+                        { "path": "file-42.txt" },
+                        { "path": "file-43.txt" },
+                        { "path": "file-44.txt" },
+                        { "path": "file-45.txt" },
+                        { "path": "file-46.txt" },
+                        { "path": "file-47.txt" },
+                        { "path": "file-48.txt" },
+                        { "path": "file-49.txt" },
+                        { "path": "file-50.txt" },
+                        { "path": "file-51.txt" },
+                        { "path": "file-52.txt" },
+                        { "path": "file-53.txt" },
+                        { "path": "file-54.txt" },
+                        { "path": "file-55.txt" },
+                        { "path": "file-56.txt" },
+                        { "path": "file-57.txt" },
+                        { "path": "file-58.txt" },
+                        { "path": "file-59.txt" },
+                        { "path": "file-60.txt" },
+                        { "path": "file-61.txt" },
+                        { "path": "file-62.txt" },
+                        { "path": "file-63.txt" },
+                        { "path": "file-64.txt" },
+                        { "path": "file-65.txt" },
+                        { "path": "file-66.txt" },
+                        { "path": "file-67.txt" },
+                        { "path": "file-68.txt" },
+                        { "path": "file-69.txt" },
+                        { "path": "file-70.txt" },
+                        { "path": "file-71.txt" },
+                        { "path": "file-72.txt" },
+                        { "path": "file-73.txt" },
+                        { "path": "file-74.txt" },
+                        { "path": "file-75.txt" },
+                        { "path": "file-76.txt" },
+                        { "path": "file-77.txt" },
+                        { "path": "file-78.txt" },
+                        { "path": "file-79.txt" },
+                        { "path": "file-80.txt" },
+                        { "path": "file-81.txt" },
+                        { "path": "file-82.txt" },
+                        { "path": "file-83.txt" },
+                        { "path": "file-84.txt" },
+                        { "path": "file-85.txt" },
+                        { "path": "file-86.txt" },
+                        { "path": "file-87.txt" },
+                        { "path": "file-88.txt" },
+                        { "path": "file-89.txt" },
+                        { "path": "file-90.txt" },
+                        { "path": "file-91.txt" },
+                        { "path": "file-92.txt" },
+                        { "path": "file-93.txt" },
+                        { "path": "file-94.txt" },
+                        { "path": "file-95.txt" },
+                        { "path": "file-96.txt" },
+                        { "path": "file-97.txt" },
+                        { "path": "file-98.txt" },
+                        { "path": "file-99.txt" },
+                        { "path": "file-100.txt" }
+                      ],
+                      "pageInfo": {
+                        "endCursor": "ABCD",
+                        "hasNextPage": true
+                      }
+                    }
+                  }
+                ]
+              },
+              "sha": "e6daec403626c9987c7af0d97b34f324cd84320a",
+              "message": "feat: a really big PR"
+            },
+            {
+              "associatedPullRequests": {
+                "nodes": []
+              },
+              "sha": "b29149f890e6f76ee31ed128585744d4c598924c",
+              "message": "fix(deps): update dependency com.google.cloud:google-cloud-storage to v1.110.0"
+            }
+          ],
+          "pageInfo": {
+            "hasNextPage": false,
+            "endCursor": "f2123321"
+          }
+        }
+      }
+    }
+  }
+}
