@@ -583,6 +583,44 @@ describe('GitHub', () => {
       snapshot(commitsSinceSha);
       req.done();
     });
+    it('backfills commit files for pull requests with > 100 files', async () => {
+      const graphql = JSON.parse(
+        readFileSync(
+          resolve(fixturesPath, 'commits-since-over-100-files.json'),
+          'utf8'
+        )
+      );
+      const graphql2 = JSON.parse(
+        readFileSync(
+          resolve(fixturesPath, 'graphql-paginated-files.json'),
+          'utf8'
+        )
+      );
+      req
+        .post('/graphql')
+        .reply(200, {
+          data: graphql,
+        })
+        .post('/graphql')
+        .reply(200, {
+          data: graphql2,
+        });
+
+      const targetBranch = 'main';
+      const commitsSinceSha = await github.commitsSince(
+        targetBranch,
+        commit => {
+          return commit.sha === 'b29149f890e6f76ee31ed128585744d4c598924c';
+        },
+        {backfillFiles: true}
+      );
+      expect(commitsSinceSha.length).to.eql(1);
+      const commitFiles = commitsSinceSha[0].files || [];
+      expect(commitFiles.length).to.eql(2);
+      expect(commitFiles[0]).to.eql('file100.txt');
+      expect(commitFiles[1]).to.eql('unicøde.txt');
+      req.done();
+    });
   });
 
   describe('mergeCommitIterator', () => {

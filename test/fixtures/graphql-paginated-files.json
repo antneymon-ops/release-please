@@ -1,0 +1,20 @@
+{
+  "repository": {
+    "pullRequest": {
+      "files": {
+        "nodes": [
+          {
+            "path": "file100.txt"
+          },
+          {
+            "path": "unicøde.txt"
+          }
+        ],
+        "pageInfo": {
+          "endCursor": "MQ",
+          "hasNextPage": false
+        }
+      }
+    }
+  }
+}
