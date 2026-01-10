@@ -1,0 +1,40 @@
+{
+  "first_page": {
+    "data": {
+      "repository": {
+        "pullRequest": {
+          "files": {
+            "nodes": [
+              {
+                "path": "file1.txt"
+              }
+            ],
+            "pageInfo": {
+              "endCursor": "ENDOFCURSOR",
+              "hasNextPage": true
+            }
+          }
+        }
+      }
+    }
+  },
+  "second_page": {
+    "data": {
+      "repository": {
+        "pullRequest": {
+          "files": {
+            "nodes": [
+              {
+                "path": "file2.txt"
+              }
+            ],
+            "pageInfo": {
+              "endCursor": null,
+              "hasNextPage": false
+            }
+          }
+        }
+      }
+    }
+  }
+}
