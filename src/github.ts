@@ -114,7 +114,24 @@ interface GraphQLPullRequest {
       path: string;
     }[];
     pageInfo: {
+      endCursor: string | null;
       hasNextPage: boolean;
+    };
+  };
+}
+
+interface GraphQLPullRequestFiles {
+  repository: {
+    pullRequest: {
+      files: {
+        nodes: {
+          path: string;
+        }[];
+        pageInfo: {
+          endCursor: string | null;
+          hasNextPage: boolean;
+        };
+      };
     };
   };
 }
@@ -526,10 +543,9 @@ export class GitHub {
           mergePullRequest.files?.pageInfo?.hasNextPage &&
           options.backfillFiles
         ) {
-          this.logger.info(
-            `PR #${mergePullRequest.number} has many files, backfilling`
+          commit.files = await this.getPullRequestFiles(
+            mergePullRequest.number
           );
-          commit.files = await this.getCommitFiles(graphCommit.sha);
         } else {
           // We cannot directly fetch files on commits via graphql, only provide file
           // information for commits with associated pull requests
@@ -551,6 +567,65 @@ export class GitHub {
       data: commitData,
     };
   }
+
+  /**
+   * Optimization:
+   *
+   * Fetch all files for a pull request using GraphQL pagination.
+   *
+   * This is an improvement over the REST API fallback because it avoids
+   * making multiple requests to the REST API, which can be slow and
+   * resource-intensive, especially for pull requests with a large
+   * number of files.
+   *
+   * @param {number} prNumber The pull request number
+   * @returns {string[]} A list of file paths
+   * @throws {GitHubAPIError} on an API error
+   */
+  private getPullRequestFiles = wrapAsync(
+    async (prNumber: number): Promise<string[]> => {
+      this.logger.info(`PR #${prNumber} has many files, backfilling`);
+      const files: string[] = [];
+      let cursor: string | null = null;
+      let hasNextPage = true;
+
+      const query = `query pullRequestFiles($owner: String!, $repo: String!, $prNumber: Int!, $cursor: String) {
+        repository(owner: $owner, name: $repo) {
+          pullRequest(number: $prNumber) {
+            files(first: 100, after: $cursor) {
+              nodes {
+                path
+              }
+              pageInfo {
+                endCursor
+                hasNextPage
+              }
+            }
+          }
+        }
+      }`;
+
+      while (hasNextPage) {
+        const response: GraphQLPullRequestFiles = await this.graphqlRequest({
+          query,
+          owner: this.repository.owner,
+          repo: this.repository.repo,
+          prNumber,
+          cursor,
+        });
+
+        const prFiles = response.repository.pullRequest.files;
+        for (const file of prFiles.nodes) {
+          files.push(file.path);
+        }
+
+        hasNextPage = prFiles.pageInfo.hasNextPage;
+        cursor = prFiles.pageInfo.endCursor;
+      }
+
+      return files;
+    }
+  );
 
   /**
    * Get the list of file paths modified in a given commit.

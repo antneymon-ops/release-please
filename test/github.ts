@@ -585,6 +585,25 @@ describe('GitHub', () => {
     });
   });
 
+  describe('getPullRequestFiles', () => {
+    it('paginates through the list of files', async () => {
+      const {first_page, second_page} = JSON.parse(
+        readFileSync(
+          resolve(fixturesPath, 'github-get-pull-request-files.json'),
+          'utf8'
+        )
+      );
+      req
+        .post('/graphql')
+        .reply(200, first_page)
+        .post('/graphql')
+        .reply(200, second_page);
+      const files = await (github as any).getPullRequestFiles(1234);
+      expect(files).to.eql(['file1.txt', 'file2.txt']);
+      req.done();
+    });
+  });
+
   describe('mergeCommitIterator', () => {
     it('handles merged pull requests without files', async () => {
       const graphql = JSON.parse(
