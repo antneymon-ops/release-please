@@ -114,7 +114,24 @@ interface GraphQLPullRequest {
       path: string;
     }[];
     pageInfo: {
+      endCursor?: string;
       hasNextPage: boolean;
+    };
+  };
+}
+
+interface GraphQLPullRequestFiles {
+  repository: {
+    pullRequest: {
+      files: {
+        nodes: {
+          path: string;
+        }[];
+        pageInfo: {
+          endCursor: string;
+          hasNextPage: boolean;
+        };
+      };
     };
   };
 }
@@ -522,20 +539,27 @@ export class GitHub {
         };
       }
       if (mergePullRequest) {
+        const files: string[] = (mergePullRequest.files?.nodes || []).map(
+          node => node.path
+        );
         if (
           mergePullRequest.files?.pageInfo?.hasNextPage &&
           options.backfillFiles
         ) {
           this.logger.info(
-            `PR #${mergePullRequest.number} has many files, backfilling`
+            `PR #${mergePullRequest.number} has many files, backfilling with GraphQL`
           );
-          commit.files = await this.getCommitFiles(graphCommit.sha);
+          files.push(
+            ...(await this.getPullRequestFiles(
+              mergePullRequest.number,
+              mergePullRequest.files.pageInfo.endCursor
+            ))
+          );
+          commit.files = files;
         } else {
           // We cannot directly fetch files on commits via graphql, only provide file
           // information for commits with associated pull requests
-          commit.files = (mergePullRequest.files?.nodes || []).map(
-            node => node.path
-          );
+          commit.files = files;
         }
       } else if (options.backfillFiles) {
         // In this case, there is no squashed merge commit. This could be a simple
@@ -550,6 +574,73 @@ export class GitHub {
       pageInfo: history.pageInfo,
       data: commitData,
     };
+  }
+
+  /**
+   * Paginate through all the files attached to a pull request.
+   *
+   * @param {number} prNumber The pull request number
+   * @param {string | undefined} cursor The cursor to use for pagination
+   * @returns {string[]} A list of file paths
+   */
+  private async getPullRequestFiles(
+    prNumber: number,
+    cursor?: string
+  ): Promise<string[]> {
+    const files: string[] = [];
+    const query = `query pullRequestFiles($owner: String!, $repo: String!, $prNumber: Int!, $cursor: String) {
+      repository(owner: $owner, name: $repo) {
+        pullRequest(number: $prNumber) {
+          files(first: 100, after: $cursor) {
+            nodes {
+              path
+            }
+            pageInfo {
+              endCursor
+              hasNextPage
+            }
+          }
+        }
+      }
+    }`;
+    const params = {
+      owner: this.repository.owner,
+      repo: this.repository.repo,
+      prNumber,
+      cursor,
+    };
+    const response: GraphQLPullRequestFiles = await this.graphqlRequest({
+      query,
+      ...params,
+    });
+    if (!response) {
+      this.logger.warn(
+        `Did not receive a response for query: ${query}`,
+        params
+      );
+      return [];
+    }
+    const pullRequest = response.repository?.pullRequest;
+    if (!pullRequest) {
+      this.logger.warn(`Could not find pull request: ${prNumber}`);
+      return [];
+    }
+
+    for (const file of pullRequest.files.nodes) {
+      files.push(file.path);
+    }
+    if (pullRequest.files.pageInfo.hasNextPage) {
+      this.logger.info(
+        `Paginating files for pull request: ${prNumber} with cursor: ${pullRequest.files.pageInfo.endCursor}`
+      );
+      files.push(
+        ...(await this.getPullRequestFiles(
+          prNumber,
+          pullRequest.files.pageInfo.endCursor
+        ))
+      );
+    }
+    return files;
   }
 
   /**
