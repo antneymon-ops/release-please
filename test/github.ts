@@ -583,6 +583,103 @@ describe('GitHub', () => {
       snapshot(commitsSinceSha);
       req.done();
     });
+
+    it('backfills commit files for pull requests with lots of files using graphql', async () => {
+      const graphqlResponse1 = {
+        repository: {
+          ref: {
+            target: {
+              history: {
+                nodes: [
+                  {
+                    associatedPullRequests: {
+                      nodes: [
+                        {
+                          number: 1362,
+                          title: 'feat: a really big PR',
+                          baseRefName: 'main',
+                          headRefName: 'really-big-pr',
+                          labels: {
+                            nodes: [{name: 'autorelease: pending'}],
+                          },
+                          body: 'feat: a really big PR',
+                          mergeCommit: {
+                            oid: 'e6daec403626c9987c7af0d97b34f324cd84320a',
+                          },
+                          files: {
+                            nodes: Array.from({length: 100}, (_, i) => ({
+                              path: `file${i}.txt`,
+                            })),
+                            pageInfo: {
+                              endCursor: 'MQ',
+                              hasNextPage: true,
+                            },
+                          },
+                        },
+                      ],
+                    },
+                    sha: 'e6daec403626c9987c7af0d97b34f324cd84320a',
+                    message: 'feat: a really big PR (#1362)',
+                  },
+                  {
+                    associatedPullRequests: {
+                      nodes: [],
+                    },
+                    sha: 'b29149f890e6f76ee31ed128585744d4c598924c',
+                    message:
+                      'fix(deps): update dependency google-cloud-storage to v1.44.0',
+                  },
+                ],
+                pageInfo: {
+                  hasNextPage: false,
+                  endCursor: 'NA',
+                },
+              },
+            },
+          },
+        },
+      };
+
+      const graphqlResponse2 = {
+        repository: {
+          pullRequest: {
+            files: {
+              nodes: [{path: 'file100.txt'}],
+              pageInfo: {
+                endCursor: 'Mg',
+                hasNextPage: false,
+              },
+            },
+          },
+        },
+      };
+
+      req
+        .post('/graphql', body => body.query.includes('pullRequestsSince'))
+        .reply(200, {
+          data: graphqlResponse1,
+        })
+        .post('/graphql', body => body.query.includes('pullRequestFiles'))
+        .reply(200, {
+          data: graphqlResponse2,
+        });
+
+      const targetBranch = 'main';
+      const commits = await github.commitsSince(
+        targetBranch,
+        commit => commit.sha === 'b29149f890e6f76ee31ed128585744d4c598924c',
+        {backfillFiles: true}
+      );
+
+      expect(commits.length).to.eql(1);
+      const commit = commits[0];
+      expect(commit.files).to.not.be.undefined;
+      expect(commit.files!.length).to.eql(101);
+      expect(commit.files![0]).to.eql('file0.txt');
+      expect(commit.files![100]).to.eql('file100.txt');
+      snapshot(commits);
+      req.done();
+    });
   });
 
   describe('mergeCommitIterator', () => {
