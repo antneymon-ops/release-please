@@ -115,7 +115,18 @@ interface GraphQLPullRequest {
     }[];
     pageInfo: {
       hasNextPage: boolean;
+      endCursor: string | null;
     };
+  };
+}
+
+interface GraphQLPullRequestFiles {
+  nodes: {
+    path: string;
+  }[];
+  pageInfo: {
+    hasNextPage: boolean;
+    endCursor: string | null;
   };
 }
 
@@ -522,14 +533,25 @@ export class GitHub {
         };
       }
       if (mergePullRequest) {
-        if (
-          mergePullRequest.files?.pageInfo?.hasNextPage &&
-          options.backfillFiles
-        ) {
+        if (mergePullRequest.files?.pageInfo?.hasNextPage) {
           this.logger.info(
             `PR #${mergePullRequest.number} has many files, backfilling`
           );
-          commit.files = await this.getCommitFiles(graphCommit.sha);
+          // We can't just call `getCommitFiles()` because that will return
+          // the list of files changed on the merge commit, not the full list
+          // of files changed in the pull request.
+          // Instead, we will paginate through all the files in the pull request
+          // via the graphql API.
+          const files = (mergePullRequest.files?.nodes || []).map(
+            node => node.path
+          );
+          files.push(
+            ...(await this.getAllPullRequestFiles(
+              mergePullRequest.number,
+              mergePullRequest.files.pageInfo.endCursor
+            ))
+          );
+          commit.files = files;
         } else {
           // We cannot directly fetch files on commits via graphql, only provide file
           // information for commits with associated pull requests
@@ -550,6 +572,54 @@ export class GitHub {
       pageInfo: history.pageInfo,
       data: commitData,
     };
+  }
+
+  /**
+   * Helper to paginate through all the files in a pull request.
+   *
+   * @param {number} pullNumber The pull request number
+   * @param {string | null} cursor The cursor to start paginating from
+   * @returns {string[]} A list of file paths in the pull request
+   */
+  private async getAllPullRequestFiles(
+    pullNumber: number,
+    cursor: string | null
+  ): Promise<string[]> {
+    const files: string[] = [];
+    while (cursor) {
+      const response = await this.graphqlRequest({
+        query: `query pullRequestFiles($owner: String!, $repo: String!, $pull_number: Int!, $cursor: String) {
+          repository(owner: $owner, name: $repo) {
+            pullRequest(number: $pull_number) {
+              files(first: 100, after: $cursor) {
+                nodes {
+                  path
+                }
+                pageInfo {
+                  endCursor
+                  hasNextPage
+                }
+              }
+            }
+          }
+        }`,
+        owner: this.repository.owner,
+        repo: this.repository.repo,
+        pull_number: pullNumber,
+        cursor: cursor,
+      });
+      const pullRequestFiles = response?.repository?.pullRequest
+        ?.files as GraphQLPullRequestFiles;
+      if (pullRequestFiles?.nodes) {
+        files.push(...pullRequestFiles.nodes.map(node => node.path));
+      }
+      if (pullRequestFiles?.pageInfo?.hasNextPage) {
+        cursor = pullRequestFiles.pageInfo.endCursor;
+      } else {
+        cursor = null;
+      }
+    }
+    return files;
   }
 
   /**
