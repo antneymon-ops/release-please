@@ -26,7 +26,7 @@ import {GH_API_URL, GitHub, GitHubRelease} from '../src/github';
 import {PullRequest} from '../src/pull-request';
 import {TagName} from '../src/util/tag-name';
 import {Version} from '../src/version';
-import assert = require('assert');
+import * as assert from 'assert';
 import {
   DuplicateReleaseError,
   GitHubAPIError,
@@ -548,6 +548,89 @@ describe('GitHub', () => {
       );
       expect(commitsSinceSha.length).to.eql(1);
       snapshot(commitsSinceSha);
+      req.done();
+    });
+
+    it('backfills commit files for pull requests with paginated files', async () => {
+      const files1 = [];
+      for (let i = 0; i < 100; i++) {
+        files1.push({path: `path${i}`});
+      }
+      const graphql = {
+        repository: {
+          ref: {
+            target: {
+              history: {
+                nodes: [
+                  {
+                    associatedPullRequests: {
+                      nodes: [
+                        {
+                          number: 1,
+                          title: 'feat: many files',
+                          baseRefName: 'main',
+                          headRefName: 'many-files',
+                          labels: {
+                            nodes: [{name: 'autorelease: pending'}],
+                          },
+                          body: 'feat: many files',
+                          mergeCommit: {
+                            oid: 'e6daec403626c9987c7af0d97b34f324cd84320a',
+                          },
+                          files: {
+                            nodes: files1,
+                            pageInfo: {
+                              endCursor: 'cursor1',
+                              hasNextPage: true,
+                            },
+                          },
+                        },
+                      ],
+                    },
+                    sha: 'e6daec403626c9987c7af0d97b34f324cd84320a',
+                    message:
+                      'feat: many files\n\nBREAKING CHANGE: some breaking change',
+                  },
+                ],
+                pageInfo: {
+                  hasNextPage: true,
+                  endCursor: 'END_CURSOR',
+                },
+              },
+            },
+          },
+        },
+      };
+      const graphql2 = {
+        repository: {
+          pullRequest: {
+            files: {
+              nodes: [{path: 'path101'}],
+              pageInfo: {
+                endCursor: 'cursor2',
+                hasNextPage: false,
+              },
+            },
+          },
+        },
+      };
+      req
+        .post('/graphql')
+        .reply(200, {
+          data: graphql,
+        })
+        .post('/graphql')
+        .reply(200, {
+          data: graphql2,
+        });
+      const targetBranch = 'main';
+      const commits = await github.commitsSince(targetBranch, commit => {
+        return !commit.sha;
+      });
+      expect(commits.length).to.eql(1);
+      expect(commits[0].files?.length).to.eql(101);
+      expect(commits[0].files![100]).to.eql('path101');
+      snapshot(commits);
       req.done();
     });
 
