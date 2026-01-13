@@ -1,0 +1,17 @@
+{
+  "repository": {
+    "pullRequest": {
+      "files": {
+        "nodes": [
+          {
+            "path": "very-many-files/101.txt"
+          }
+        ],
+        "pageInfo": {
+          "endCursor": "MQ",
+          "hasNextPage": false
+        }
+      }
+    }
+  }
+}

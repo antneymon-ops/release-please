@@ -115,6 +115,7 @@ interface GraphQLPullRequest {
     }[];
     pageInfo: {
       hasNextPage: boolean;
+      endCursor: string | undefined;
     };
   };
 }
@@ -522,21 +523,32 @@ export class GitHub {
         };
       }
       if (mergePullRequest) {
+        // We cannot directly fetch files on commits via graphql, only provide file
+        // information for commits with associated pull requests
+        const files = (mergePullRequest.files?.nodes || []).map(
+          (node: {path: string}) => node.path
+        );
         if (
           mergePullRequest.files?.pageInfo?.hasNextPage &&
           options.backfillFiles
         ) {
           this.logger.info(
-            `PR #${mergePullRequest.number} has many files, backfilling`
+            `PR #${mergePullRequest.number} has many files, paginating`
           );
-          commit.files = await this.getCommitFiles(graphCommit.sha);
-        } else {
-          // We cannot directly fetch files on commits via graphql, only provide file
-          // information for commits with associated pull requests
-          commit.files = (mergePullRequest.files?.nodes || []).map(
-            node => node.path
-          );
+          let cursor = mergePullRequest.files.pageInfo.endCursor;
+          let hasNextPage: boolean = mergePullRequest.files.pageInfo.hasNextPage;
+          while (hasNextPage && cursor) {
+            const {files: pagedFiles, pageInfo} =
+              await this.paginateFilesGraphQL(
+                mergePullRequest.number,
+                cursor
+              );
+            files.push(...pagedFiles);
+            cursor = pageInfo.endCursor;
+            hasNextPage = pageInfo.hasNextPage;
+          }
         }
+        commit.files = files;
       } else if (options.backfillFiles) {
         // In this case, there is no squashed merge commit. This could be a simple
         // merge commit, a rebase merge commit, or a direct commit to the branch.
@@ -1320,6 +1332,62 @@ export class GitHub {
       }
     }
     return changes;
+  }
+
+  /**
+   * Paginate through all files in a pull request.
+   *
+   * @param {number} pullNumber The pull request number
+   * @param {string} cursor The cursor to start paginating from
+   * @returns {{files: string[], pageInfo: {hasNextPage: boolean, endCursor: string | undefined}}}
+   * @throws {GitHubAPIError} on an API error
+   */
+  private async paginateFilesGraphQL(
+    pullNumber: number,
+    cursor: string
+  ): Promise<{
+    files: string[];
+    pageInfo: {hasNextPage: boolean; endCursor: string | undefined};
+  }> {
+    this.logger.debug(
+      `Paginating files for PR #${pullNumber} with cursor ${cursor}`
+    );
+    const response = await this.graphqlRequest({
+      query: `query paginateFiles($owner: String!, $repo: String!, $pullNumber: Int!, $cursor: String) {
+        repository(owner: $owner, name: $repo) {
+          pullRequest(number: $pullNumber) {
+            files(first: 100, after: $cursor) {
+              nodes {
+                path
+              }
+              pageInfo {
+                endCursor
+                hasNextPage
+              }
+            }
+          }
+        }
+      }`,
+      owner: this.repository.owner,
+      repo: this.repository.repo,
+      pullNumber,
+      cursor,
+    });
+    if (!response?.repository?.pullRequest?.files) {
+      this.logger.warn(`Could not find files for PR #${pullNumber}`);
+      return {
+        files: [],
+        pageInfo: {
+          hasNextPage: false,
+          endCursor: undefined,
+        },
+      };
+    }
+    const files = response.repository.pullRequest.files;
+    return {
+      files: files.nodes.map((node: {path: string}) => node.path),
+      pageInfo: files.pageInfo,
+    };
   }
 
   /**

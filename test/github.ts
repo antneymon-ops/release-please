@@ -583,6 +583,40 @@ describe('GitHub', () => {
       snapshot(commitsSinceSha);
       req.done();
     });
+
+    it('paginates through files for pull requests with lots of files', async () => {
+      const graphql = JSON.parse(
+        readFileSync(
+          resolve(fixturesPath, 'commits-since-many-files.json'),
+          'utf8'
+        )
+      );
+      const pagedFiles = JSON.parse(
+        readFileSync(resolve(fixturesPath, 'paged-files.json'), 'utf8')
+      );
+      req
+        .post('/graphql')
+        .reply(200, {
+          data: graphql,
+        })
+        .post('/graphql')
+        .reply(200, {
+          data: pagedFiles,
+        });
+      const targetBranch = 'main';
+      const commitsSinceSha = await github.commitsSince(
+        targetBranch,
+        commit => {
+          // this commit is the 2nd most recent
+          return commit.sha === 'b29149f890e6f76ee31ed128585744d4c598924c';
+        },
+        {backfillFiles: true}
+      );
+      expect(commitsSinceSha.length).to.eql(1);
+      expect(commitsSinceSha[0].files).lengthOf(101);
+      snapshot(commitsSinceSha);
+      req.done();
+    });
   });
 
   describe('mergeCommitIterator', () => {
