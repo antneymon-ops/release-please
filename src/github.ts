@@ -486,8 +486,12 @@ export class GitHub {
         }
       }
     }
-    const commitData: Commit[] = [];
-    for (const graphCommit of commits) {
+    // Refactor: parallelize backfilling commit files.
+    // Instead of iterating through commits and awaiting `getCommitFiles` for each one,
+    // we map each commit to a promise and then use `Promise.all` to wait for all
+    // of them to finish. This can significantly speed up processing when multiple
+    // commits in a batch need to have their file lists backfilled via the REST API.
+    const commitDataPromises = commits.map(async graphCommit => {
       const commit: Commit = {
         sha: graphCommit.sha,
         message: graphCommit.message,
@@ -556,8 +560,9 @@ export class GitHub {
         // we can perhaps lazy load these.
         commit.files = await this.getCommitFiles(graphCommit.sha);
       }
-      commitData.push(commit);
-    }
+      return commit;
+    });
+    const commitData = await Promise.all(commitDataPromises);
     return {
       pageInfo: history.pageInfo,
       data: commitData,
