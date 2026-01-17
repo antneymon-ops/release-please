@@ -487,6 +487,7 @@ export class GitHub {
       }
     }
     const commitData: Commit[] = [];
+    const backfillPromises: Promise<void>[] = [];
     for (const graphCommit of commits) {
       const commit: Commit = {
         sha: graphCommit.sha,
@@ -554,10 +555,20 @@ export class GitHub {
         // merge commit, a rebase merge commit, or a direct commit to the branch.
         // Fallback to fetching the list of commits from the REST API. In the future
         // we can perhaps lazy load these.
-        commit.files = await this.getCommitFiles(graphCommit.sha);
+        //
+        // This can be slow if there are many commits to backfill.
+        // Instead of awaiting each promise, we can run them in parallel.
+        const promise = this.getCommitFiles(graphCommit.sha).then(files => {
+          commit.files = files;
+        });
+        backfillPromises.push(promise);
       }
       commitData.push(commit);
     }
+
+    // Await all the backfill promises to complete.
+    await Promise.all(backfillPromises);
+
     return {
       pageInfo: history.pageInfo,
       data: commitData,
