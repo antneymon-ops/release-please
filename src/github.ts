@@ -487,6 +487,11 @@ export class GitHub {
       }
     }
     const commitData: Commit[] = [];
+
+    // Backfill files for commits that are not squashed merge commits.
+    // This is done in parallel to speed up the process.
+    const backfillCommits = new Map<string, Commit>();
+
     for (const graphCommit of commits) {
       const commit: Commit = {
         sha: graphCommit.sha,
@@ -554,9 +559,24 @@ export class GitHub {
         // merge commit, a rebase merge commit, or a direct commit to the branch.
         // Fallback to fetching the list of commits from the REST API. In the future
         // we can perhaps lazy load these.
-        commit.files = await this.getCommitFiles(graphCommit.sha);
+        backfillCommits.set(graphCommit.sha, commit);
       }
       commitData.push(commit);
+    }
+
+    if (backfillCommits.size > 0) {
+      const backfillSHAs = Array.from(backfillCommits.keys());
+      const backfillPromises = backfillSHAs.map(sha =>
+        this.getCommitFiles(sha)
+      );
+      const backfilledFiles = await Promise.all(backfillPromises);
+      for (let i = 0; i < backfillSHAs.length; i++) {
+        const sha = backfillSHAs[i];
+        const commit = backfillCommits.get(sha);
+        if (commit) {
+          commit.files = backfilledFiles[i];
+        }
+      }
     }
     return {
       pageInfo: history.pageInfo,

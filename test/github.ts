@@ -584,6 +584,43 @@ describe('GitHub', () => {
       req.done();
     });
 
+    it('backfills commit files in parallel', async () => {
+      const graphql = JSON.parse(
+        readFileSync(resolve(fixturesPath, 'commits-since-rebase.json'), 'utf8')
+      );
+      const delay = 100; // 100ms delay
+      req
+        .post('/graphql')
+        .reply(200, {
+          data: graphql,
+        })
+        .get(
+          '/repos/fake/fake/commits/b29149f890e6f76ee31ed128585744d4c598924c'
+        )
+        .delay(delay)
+        .reply(200, {files: [{filename: 'abc'}]})
+        .get(
+          '/repos/fake/fake/commits/27d7d7232e2e312d1380e906984f0823f5decf61'
+        )
+        .delay(delay)
+        .reply(200, {files: [{filename: 'def'}]});
+      const targetBranch = 'main';
+      const startTime = Date.now();
+      await github.commitsSince(
+        targetBranch,
+        commit => {
+          // this commit is the 3rd most recent
+          return commit.sha === '2b4e0b3be2e231cd87cc44c411bd8f84b4587ab5';
+        },
+        {backfillFiles: true}
+      );
+      const duration = Date.now() - startTime;
+      // If the requests were sequential, the duration would be > 200ms.
+      // We assert that it's less than that, allowing for some overhead.
+      expect(duration).to.be.lessThan(delay * 2 - 20);
+      req.done();
+    });
+
     it('paginates through files for pull requests with lots of files', async () => {
       const graphql = JSON.parse(
         readFileSync(
