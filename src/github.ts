@@ -549,14 +549,22 @@ export class GitHub {
           }
         }
         commit.files = files;
-      } else if (options.backfillFiles) {
-        // In this case, there is no squashed merge commit. This could be a simple
-        // merge commit, a rebase merge commit, or a direct commit to the branch.
-        // Fallback to fetching the list of commits from the REST API. In the future
-        // we can perhaps lazy load these.
-        commit.files = await this.getCommitFiles(graphCommit.sha);
       }
       commitData.push(commit);
+    }
+
+    if (options.backfillFiles) {
+      // optimization: backfill file lists in parallel
+      const commitsToBackfill = commitData.filter(
+        commit => commit.files === undefined
+      );
+      const filePromises = commitsToBackfill.map(commit =>
+        this.getCommitFiles(commit.sha!)
+      );
+      const files = await Promise.all(filePromises);
+      files.forEach((fileList, i) => {
+        commitsToBackfill[i].files = fileList;
+      });
     }
     return {
       pageInfo: history.pageInfo,
