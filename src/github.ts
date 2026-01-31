@@ -486,78 +486,81 @@ export class GitHub {
         }
       }
     }
-    const commitData: Commit[] = [];
-    for (const graphCommit of commits) {
-      const commit: Commit = {
-        sha: graphCommit.sha,
-        message: graphCommit.message,
-      };
-      const mergePullRequest = graphCommit.associatedPullRequests.nodes.find(
-        pr => {
-          return (
-            // Only match the pull request with a merge commit if there is a
-            // single merged commit in the PR. This means merge commits and squash
-            // merges will be matched, but rebase merged PRs will only be matched
-            // if they contain a single commit. This is so PRs that are rebased
-            // and merged will have ßSfiles backfilled from each commit instead of
-            // the whole PR.
-            pr.mergeCommit &&
-            pr.mergeCommit.oid === graphCommit.sha &&
-            mergeCommitCount[pr.mergeCommit.oid] === 1
-          );
-        }
-      );
-      const pullRequest =
-        mergePullRequest || graphCommit.associatedPullRequests.nodes[0];
-      if (pullRequest) {
-        commit.pullRequest = {
-          sha: commit.sha,
-          number: pullRequest.number,
-          baseBranchName: pullRequest.baseRefName,
-          headBranchName: pullRequest.headRefName,
-          mergeCommitOid: pullRequest.mergeCommit?.oid,
-          title: pullRequest.title,
-          body: pullRequest.body,
-          labels: pullRequest.labels.nodes.map(node => node.name),
-          files: (pullRequest.files?.nodes || []).map(node => node.path),
+    const commitData: Commit[] = await Promise.all(
+      commits.map(async graphCommit => {
+        const commit: Commit = {
+          sha: graphCommit.sha,
+          message: graphCommit.message,
         };
-      }
-      if (mergePullRequest) {
-        // We cannot directly fetch files on commits via graphql, only provide file
-        // information for commits with associated pull requests
-        const files = (mergePullRequest.files?.nodes || []).map(
-          (node: {path: string}) => node.path
-        );
-        if (
-          mergePullRequest.files?.pageInfo?.hasNextPage &&
-          options.backfillFiles
-        ) {
-          this.logger.info(
-            `PR #${mergePullRequest.number} has many files, paginating`
-          );
-          let cursor = mergePullRequest.files.pageInfo.endCursor;
-          let hasNextPage: boolean = mergePullRequest.files.pageInfo.hasNextPage;
-          while (hasNextPage && cursor) {
-            const {files: pagedFiles, pageInfo} =
-              await this.paginateFilesGraphQL(
-                mergePullRequest.number,
-                cursor
-              );
-            files.push(...pagedFiles);
-            cursor = pageInfo.endCursor;
-            hasNextPage = pageInfo.hasNextPage;
+        const mergePullRequest = graphCommit.associatedPullRequests.nodes.find(
+          pr => {
+            return (
+              // Only match the pull request with a merge commit if there is a
+              // single merged commit in the PR. This means merge commits and squash
+              // merges will be matched, but rebase merged PRs will only be matched
+              // if they contain a single commit. This is so PRs that are rebased
+              // and merged will have ßSfiles backfilled from each commit instead of
+              // the whole PR.
+              pr.mergeCommit &&
+              pr.mergeCommit.oid === graphCommit.sha &&
+              mergeCommitCount[pr.mergeCommit.oid] === 1
+            );
           }
+        );
+        const pullRequest =
+          mergePullRequest || graphCommit.associatedPullRequests.nodes[0];
+        if (pullRequest) {
+          commit.pullRequest = {
+            sha: commit.sha,
+            number: pullRequest.number,
+            baseBranchName: pullRequest.baseRefName,
+            headBranchName: pullRequest.headRefName,
+            mergeCommitOid: pullRequest.mergeCommit?.oid,
+            title: pullRequest.title,
+            body: pullRequest.body,
+            labels: pullRequest.labels.nodes.map(node => node.name),
+            files: (pullRequest.files?.nodes || []).map(node => node.path),
+          };
         }
-        commit.files = files;
-      } else if (options.backfillFiles) {
-        // In this case, there is no squashed merge commit. This could be a simple
-        // merge commit, a rebase merge commit, or a direct commit to the branch.
-        // Fallback to fetching the list of commits from the REST API. In the future
-        // we can perhaps lazy load these.
-        commit.files = await this.getCommitFiles(graphCommit.sha);
-      }
-      commitData.push(commit);
-    }
+        if (mergePullRequest) {
+          // We cannot directly fetch files on commits via graphql, only provide file
+          // information for commits with associated pull requests
+          const files = (mergePullRequest.files?.nodes || []).map(
+            (node: {path: string}) => node.path
+          );
+          if (
+            mergePullRequest.files?.pageInfo?.hasNextPage &&
+            options.backfillFiles
+          ) {
+            this.logger.info(
+              `PR #${mergePullRequest.number} has many files, paginating`
+            );
+            let cursor = mergePullRequest.files.pageInfo.endCursor;
+            let hasNextPage: boolean =
+              mergePullRequest.files.pageInfo.hasNextPage;
+            while (hasNextPage && cursor) {
+              const {files: pagedFiles, pageInfo} =
+                await this.paginateFilesGraphQL(
+                  mergePullRequest.number,
+                  cursor
+                );
+              files.push(...pagedFiles);
+              cursor = pageInfo.endCursor;
+              hasNextPage = pageInfo.hasNextPage;
+            }
+          }
+          commit.files = files;
+        } else if (options.backfillFiles) {
+          // In this case, there is no squashed merge commit. This could be a simple
+          // merge commit, a rebase merge commit, or a direct commit to the branch.
+          // Fallback to fetching the list of commits from the REST API. In the future
+          // we can perhaps lazy load these.
+          // Bolt Optimization: parallelize backfilling of files.
+          commit.files = await this.getCommitFiles(graphCommit.sha);
+        }
+        return commit;
+      })
+    );
     return {
       pageInfo: history.pageInfo,
       data: commitData,

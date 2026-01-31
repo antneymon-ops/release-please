@@ -584,6 +584,47 @@ describe('GitHub', () => {
       req.done();
     });
 
+    it('backfills commit files in parallel', async () => {
+      const graphql = JSON.parse(
+        readFileSync(resolve(fixturesPath, 'commits-since-rebase.json'), 'utf8')
+      );
+      // This fixture has 3 commits, 2 of which need backfilling via REST API.
+      // We will delay both requests and ensure total time is around 1x delay, not 2x.
+      const delay = 250;
+      req
+        .post('/graphql')
+        .reply(200, {
+          data: graphql,
+        })
+        .get(
+          '/repos/fake/fake/commits/b29149f890e6f76ee31ed128585744d4c598924c'
+        )
+        .delay(delay)
+        .reply(200, {files: [{filename: 'abc'}]})
+        .get(
+          '/repos/fake/fake/commits/27d7d7232e2e312d1380e906984f0823f5decf61'
+        )
+        .delay(delay)
+        .reply(200, {files: [{filename: 'def'}]});
+
+      const startTime = Date.now();
+      const targetBranch = 'main';
+      await github.commitsSince(
+        targetBranch,
+        commit => {
+          return commit.sha === '2b4e0b3be2e231cd87cc44c411bd8f84b4587ab5';
+        },
+        {backfillFiles: true}
+      );
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+
+      // If sequential, it should be at least 2 * delay (500ms).
+      // If parallel, it should be significantly less than 2 * delay.
+      expect(duration).to.be.lessThan(delay * 1.8);
+      req.done();
+    });
+
     it('paginates through files for pull requests with lots of files', async () => {
       const graphql = JSON.parse(
         readFileSync(
