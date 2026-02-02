@@ -536,13 +536,11 @@ export class GitHub {
             `PR #${mergePullRequest.number} has many files, paginating`
           );
           let cursor = mergePullRequest.files.pageInfo.endCursor;
-          let hasNextPage: boolean = mergePullRequest.files.pageInfo.hasNextPage;
+          let hasNextPage: boolean =
+            mergePullRequest.files.pageInfo.hasNextPage;
           while (hasNextPage && cursor) {
             const {files: pagedFiles, pageInfo} =
-              await this.paginateFilesGraphQL(
-                mergePullRequest.number,
-                cursor
-              );
+              await this.paginateFilesGraphQL(mergePullRequest.number, cursor);
             files.push(...pagedFiles);
             cursor = pageInfo.endCursor;
             hasNextPage = pageInfo.hasNextPage;
