@@ -51,6 +51,7 @@ export interface CommitSplitOptions {
 export class CommitSplit {
   includeEmpty: boolean;
   packagePaths?: string[];
+  private packagePathsSet?: Set<string>;
   constructor(opts?: CommitSplitOptions) {
     opts = opts || {};
     this.includeEmpty = !!opts.includeEmpty;
@@ -63,6 +64,7 @@ export class CommitSplit {
           return path !== ROOT_PROJECT_PATH;
         })
         .sort((a, b) => b.length - a.length); // sort by longest paths first
+      this.packagePathsSet = new Set(this.packagePaths);
     }
   }
 
@@ -94,7 +96,18 @@ export class CommitSplit {
         if (splitPath.length === 1) continue;
 
         let pkgName;
-        if (this.packagePaths) {
+        if (this.packagePathsSet) {
+          // only track paths under this.packagePaths
+          // we iterate through the path parts to find the longest matching
+          // package path.
+          for (let i = splitPath.length - 1; i > 0; i--) {
+            const packagePath = splitPath.slice(0, i).join('/');
+            if (this.packagePathsSet.has(packagePath)) {
+              pkgName = packagePath;
+              break;
+            }
+          }
+        } else if (this.packagePaths) {
           // only track paths under this.packagePaths
           pkgName = this.packagePaths.find(p => file.indexOf(`${p}/`) === 0);
         } else {
