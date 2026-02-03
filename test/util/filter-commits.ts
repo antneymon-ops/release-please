@@ -69,7 +69,7 @@ describe('filterCommits', () => {
     ]);
     expect(commits.length).to.equal(0);
   });
-  it('includes hidden commit types for non-breaking changes', () => {
+  it('includes hidden commit types for breaking changes', () => {
     const commits = filterCommits([
       {
         type: 'chore',
@@ -83,7 +83,7 @@ describe('filterCommits', () => {
         bareMessage: '',
         message: '',
         scope: null,
-        breaking: false,
+        breaking: true,
         sha: 'deadbeef',
       },
     ]);

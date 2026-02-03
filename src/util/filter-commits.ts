@@ -15,8 +15,6 @@
 import {ChangelogSection} from '../changelog-notes';
 import {ConventionalCommit} from '../commit';
 
-const BREAKING_CHANGE_NOTE = 'BREAKING CHANGE';
-
 const DEFAULT_CHANGELOG_SECTIONS = [
   {type: 'feat', section: 'Features'},
   {type: 'fix', section: 'Bug Fixes'},
@@ -44,20 +42,20 @@ export function filterCommits(
   commits: ConventionalCommit[],
   changelogSections?: ChangelogSection[]
 ): ConventionalCommit[] {
-  changelogSections = changelogSections ?? DEFAULT_CHANGELOG_SECTIONS;
-  const hiddenSections: Array<string> = [];
-  const visibleSections: Array<string> = [];
-  for (const section of changelogSections) {
-    if (!section.hidden) visibleSections.push(section.type);
-    else hiddenSections.push(section.type);
+  const sections = changelogSections ?? DEFAULT_CHANGELOG_SECTIONS;
+  const hiddenSections = new Set<string>();
+  const visibleSections = new Set<string>();
+  for (const section of sections) {
+    if (section.hidden) {
+      hiddenSections.add(section.type);
+    } else {
+      visibleSections.add(section.type);
+    }
   }
   return commits.filter(commit => {
-    const isBreaking = commit.notes.find(note => {
-      return note.title === BREAKING_CHANGE_NOTE;
-    });
     return (
-      visibleSections.includes(commit.type) ||
-      (isBreaking && hiddenSections.includes(commit.type))
+      visibleSections.has(commit.type) ||
+      (commit.breaking && hiddenSections.has(commit.type))
     );
   });
 }
