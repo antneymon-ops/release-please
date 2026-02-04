@@ -33,14 +33,15 @@ export class CommitExclude {
     commitsPerPath: Record<string, T[]>
   ): Record<string, T[]> {
     const filteredCommitsPerPath: Record<string, T[]> = {};
-    Object.entries(commitsPerPath).forEach(([path, commits]) => {
+    for (const path of Object.keys(commitsPerPath)) {
+      let commits = commitsPerPath[path];
       if (this.excludePaths[path]) {
         commits = commits.filter(commit =>
           this.shouldInclude(commit, this.excludePaths[path], path)
         );
       }
       filteredCommitsPerPath[path] = commits;
-    });
+    }
     return filteredCommitsPerPath;
   }
 
@@ -49,15 +50,33 @@ export class CommitExclude {
     excludePaths: string[],
     packagePath: string
   ): boolean {
-    return (
-      !commit.files ||
-      !commit.files
-        .filter(file => this.isRelevant(file, packagePath))
-        .every(file => excludePaths.some(path => this.isRelevant(file, path)))
-    );
+    if (!commit.files) {
+      return true;
+    }
+
+    for (const file of commit.files) {
+      if (this.isRelevant(file, packagePath)) {
+        let isExcluded = false;
+        for (const excludePath of excludePaths) {
+          if (this.isRelevant(file, excludePath)) {
+            isExcluded = true;
+            break;
+          }
+        }
+        if (!isExcluded) {
+          // Found a file that is in the package and NOT excluded.
+          return true;
+        }
+      }
+    }
+    // Either no relevant files, or all were excluded.
+    return false;
   }
 
   private isRelevant(file: string, path: string) {
-    return path === ROOT_PROJECT_PATH || file.indexOf(`${path}/`) === 0;
+    return (
+      path === ROOT_PROJECT_PATH ||
+      (file.startsWith(path) && file.charAt(path.length) === '/')
+    );
   }
 }
