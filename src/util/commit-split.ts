@@ -90,29 +90,37 @@ export class CommitSplit {
         const file: string = commit.files[i];
         // NOTE: GitHub API always returns paths using the `/` separator,
         // regardless of what platform the client code is running on
-        const splitPath = file.split('/');
+        const lastSlashIndex = file.lastIndexOf('/');
         // indicates that we have a top-level file and not a folder
         // in this edge-case we should not attempt to update the path.
-        if (splitPath.length === 1) continue;
+        if (lastSlashIndex === -1) continue;
 
-        let pkgName;
+        let pkgName: string | undefined;
         if (this.packagePathsSet) {
           // only track paths under this.packagePaths
           // we iterate through the path parts to find the longest matching
           // package path.
-          for (let i = splitPath.length - 1; i > 0; i--) {
-            const packagePath = splitPath.slice(0, i).join('/');
+          // PERFORMANCE: Use lastIndexOf and substring to avoid multiple
+          // string/array allocations from split/slice/join.
+          let pos = lastSlashIndex;
+          while (pos !== -1) {
+            const packagePath = file.substring(0, pos);
             if (this.packagePathsSet.has(packagePath)) {
               pkgName = packagePath;
               break;
             }
+            pos = file.lastIndexOf('/', pos - 1);
           }
         } else if (this.packagePaths) {
           // only track paths under this.packagePaths
-          pkgName = this.packagePaths.find(p => file.indexOf(`${p}/`) === 0);
+          // PERFORMANCE: Use startsWith and charAt to avoid creating a new
+          // string for each comparison.
+          pkgName = this.packagePaths.find(
+            p => file.startsWith(p) && file.charAt(p.length) === '/'
+          );
         } else {
           // track paths by top level folder
-          pkgName = splitPath[0];
+          pkgName = file.substring(0, file.indexOf('/'));
         }
         if (!pkgName || dedupe.has(pkgName)) continue;
         else dedupe.add(pkgName);
