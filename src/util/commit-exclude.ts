@@ -49,15 +49,36 @@ export class CommitExclude {
     excludePaths: string[],
     packagePath: string
   ): boolean {
-    return (
-      !commit.files ||
-      !commit.files
-        .filter(file => this.isRelevant(file, packagePath))
-        .every(file => excludePaths.some(path => this.isRelevant(file, path)))
-    );
-  }
+    if (!commit.files) {
+      return true;
+    }
 
-  private isRelevant(file: string, path: string) {
-    return path === ROOT_PROJECT_PATH || file.indexOf(`${path}/`) === 0;
+    const isPackageRoot = packagePath === ROOT_PROJECT_PATH;
+    for (const file of commit.files) {
+      // Check if the file is relevant to the current package path
+      if (
+        isPackageRoot ||
+        (file.startsWith(packagePath) &&
+          file.charAt(packagePath.length) === '/')
+      ) {
+        let excluded = false;
+        for (const excludePath of excludePaths) {
+          // Check if the file should be excluded based on excludePaths
+          if (
+            excludePath === ROOT_PROJECT_PATH ||
+            (file.startsWith(excludePath) &&
+              file.charAt(excludePath.length) === '/')
+          ) {
+            excluded = true;
+            break;
+          }
+        }
+        if (!excluded) {
+          // Found a file relevant to the package that is not excluded
+          return true;
+        }
+      }
+    }
+    return false;
   }
 }
