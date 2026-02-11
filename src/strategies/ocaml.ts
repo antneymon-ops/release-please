@@ -63,29 +63,35 @@ export class OCaml extends BaseStrategy {
     }
 
     const opamPaths = await this.github.findFilesByExtension('opam', this.path);
-    opamPaths.filter(notEsyLock).forEach(path => {
-      updates.push({
-        path: this.addPath(path),
-        createIfMissing: false,
-        updater: new Opam({
-          version,
-        }),
-      });
-    });
+    // Use for..of instead of filter().forEach() to avoid double iteration
+    for (const path of opamPaths) {
+      if (notEsyLock(path)) {
+        updates.push({
+          path: this.addPath(path),
+          createIfMissing: false,
+          updater: new Opam({
+            version,
+          }),
+        });
+      }
+    }
 
     const opamLockedPaths = await this.github.findFilesByExtension(
       'opam.locked',
       this.path
     );
-    opamLockedPaths.filter(notEsyLock).forEach(path => {
-      updates.push({
-        path: this.addPath(path),
-        createIfMissing: false,
-        updater: new Opam({
-          version,
-        }),
-      });
-    });
+    // Use for..of instead of filter().forEach() to avoid double iteration
+    for (const path of opamLockedPaths) {
+      if (notEsyLock(path)) {
+        updates.push({
+          path: this.addPath(path),
+          createIfMissing: false,
+          updater: new Opam({
+            version,
+          }),
+        });
+      }
+    }
 
     updates.push({
       path: this.addPath('dune-project'),
