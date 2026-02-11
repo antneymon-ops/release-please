@@ -98,13 +98,14 @@ export class CommitSplit {
         let pkgName;
         if (this.packagePathsSet) {
           // only track paths under this.packagePaths
-          // we iterate through the path parts to find the longest matching
-          // package path.
-          for (let i = splitPath.length - 1; i > 0; i--) {
-            const packagePath = splitPath.slice(0, i).join('/');
-            if (this.packagePathsSet.has(packagePath)) {
-              pkgName = packagePath;
-              break;
+          // Since packagePaths are already sorted by length (longest first),
+          // check each path directly without building subpaths
+          if (this.packagePaths) {
+            for (const path of this.packagePaths) {
+              if (file === path || file.startsWith(`${path}/`)) {
+                pkgName = path;
+                break;
+              }
             }
           }
         } else if (this.packagePaths) {
