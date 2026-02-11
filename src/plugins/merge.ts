@@ -89,11 +89,11 @@ export class Merge extends ManifestPlugin {
 
     const releaseData: ReleaseData[] = [];
     const labels = new Set<string>();
-    let rawUpdates: Update[] = [];
+    const rawUpdates: Update[] = [];
     let rootRelease: CandidateReleasePullRequest | null = null;
     for (const candidate of inScopeCandidates) {
       const pullRequest = candidate.pullRequest;
-      rawUpdates = rawUpdates.concat(...pullRequest.updates);
+      rawUpdates.push(...pullRequest.updates);
       for (const label of pullRequest.labels) {
         labels.add(label);
       }

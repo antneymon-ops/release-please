@@ -47,19 +47,21 @@ export class VersionsManifest extends JavaUpdate {
     packageName: string,
     version: string
   ): string {
+    // Pre-compile regex once for better performance (no 'g' flag needed for replace)
+    const packageRegex = new RegExp(`^${packageName}:(.*):(.*)`);
     const newLines: string[] = [];
     content.split(/\r?\n/).forEach(line => {
       if (version.includes('SNAPSHOT')) {
         newLines.push(
           line.replace(
-            new RegExp(`^${packageName}:(.*):(.*)`, 'g'),
+            packageRegex,
             `${packageName}:$1:${version}`
           )
         );
       } else {
         newLines.push(
           line.replace(
-            new RegExp(`^${packageName}:(.*):(.*)`, 'g'),
+            packageRegex,
             `${packageName}:${version}:${version}`
           )
         );

@@ -1762,7 +1762,8 @@ export class GitHub {
  * @param prefix String to normalize
  */
 function normalizePrefix(prefix: string) {
-  const normalized = prefix.replace(/^[/\\]/, '').replace(/[/\\]$/, '');
+  // Combine both replacements into a single regex for better performance
+  const normalized = prefix.replace(/^[/\\]|[/\\]$/g, '');
   if (normalized === ROOT_PROJECT_PATH) {
     return '';
   }
