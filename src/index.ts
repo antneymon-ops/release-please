@@ -65,6 +65,22 @@ export {
   ClawBotPRRule,
   ClawBotResult,
 } from './claw-bot';
+export {
+  SecureWebSocketServer,
+  WebSocketServerConfig,
+  WebSocketMessage,
+} from './websocket-server';
+export {
+  MoltBot,
+  MoltBotConfig,
+  MoltBotCommand,
+  MoltBotEventType,
+} from './molt-bot';
+export {
+  ClawdBot,
+  ClawdBotConfig,
+  ClawdBotCommand,
+} from './clawd-bot';
 export const configSchema = require('../../schemas/config.json');
 export const manifestSchema = require('../../schemas/manifest.json');
 
