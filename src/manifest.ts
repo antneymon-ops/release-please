@@ -47,6 +47,7 @@ import {
 } from './util/pull-request-overflow-handler';
 import {signoffCommitMessage} from './util/signoff-commit-message';
 import {CommitExclude} from './util/commit-exclude';
+import {promiseQueue} from './util/promise-queue';
 
 type ExtraGenericFile = {
   type: 'generic';
@@ -937,17 +938,18 @@ export class Manifest {
       }
       return pullRequests;
     } else {
-      const promises: Promise<PullRequest | undefined>[] = [];
-      for (const pullRequest of candidatePullRequests) {
-        promises.push(
+      // Use bounded concurrency (max 5 concurrent requests) to avoid rate limiting
+      const MAX_CONCURRENT_PR_OPERATIONS = 5;
+      const pullNumbers = await promiseQueue(
+        candidatePullRequests,
+        pullRequest =>
           this.createOrUpdatePullRequest(
             pullRequest,
             openPullRequests,
             snoozedPullRequests
-          )
-        );
-      }
-      const pullNumbers = await Promise.all(promises);
+          ),
+        MAX_CONCURRENT_PR_OPERATIONS
+      );
       // reject any pull numbers that were not created or updated
       return pullNumbers.filter(number => !!number);
     }
@@ -1328,7 +1330,10 @@ export class Manifest {
     if (!this._strategiesByPath) {
       this.logger.info('Building strategies by path');
       this._strategiesByPath = {};
-      for (const path in this.repositoryConfig) {
+      
+      // Parallelize strategy initialization for better performance
+      const paths = Object.keys(this.repositoryConfig);
+      const strategyPromises = paths.map(async path => {
         const config = this.repositoryConfig[path];
         this.logger.debug(`${path}: ${config.releaseType}`);
         const strategy = await buildStrategy({
@@ -1337,6 +1342,11 @@ export class Manifest {
           path,
           targetBranch: this.targetBranch,
         });
+        return {path, strategy};
+      });
+      
+      const strategies = await Promise.all(strategyPromises);
+      for (const {path, strategy} of strategies) {
         this._strategiesByPath[path] = strategy;
       }
     }
@@ -1347,9 +1357,17 @@ export class Manifest {
     if (!this._pathsByComponent) {
       this._pathsByComponent = {};
       const strategiesByPath = await this.getStrategiesByPath();
-      for (const path in this.repositoryConfig) {
+      
+      // Parallelize component lookups for better performance
+      const paths = Object.keys(this.repositoryConfig);
+      const componentPromises = paths.map(async path => {
         const strategy = strategiesByPath[path];
         const component = (await strategy.getComponent()) || '';
+        return {path, component};
+      });
+      
+      const components = await Promise.all(componentPromises);
+      for (const {path, component} of components) {
         if (this._pathsByComponent[component]) {
           this.logger.warn(
             `Multiple paths for ${component}: ${this._pathsByComponent[component]}, ${path}`
