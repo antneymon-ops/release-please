@@ -300,11 +300,10 @@ export class MoltBot {
         prs.push({
           number: pr.number,
           title: pr.title,
-          state: pr.state,
-          author: pr.author?.login,
-          createdAt: pr.createdAt,
-          updatedAt: pr.updatedAt,
-          labels: pr.labels?.nodes?.map((l: any) => l.name) || [],
+          headBranch: pr.headBranchName,
+          baseBranch: pr.baseBranchName,
+          labels: pr.labels || [],
+          files: pr.files?.slice(0, 5) || [], // First 5 files only
         });
         count++;
         if (count >= limit) break;

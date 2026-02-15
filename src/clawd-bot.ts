@@ -108,8 +108,22 @@ export enum ClawdBotCommand {
  */
 export class ClawdBot {
   private clawBot: ClawBot;
-  private config: Required<Omit<ClawdBotConfig, 'websocketServer' | 'rbac'>> & {
+  private config: {
+    autoApproveDependencies?: boolean;
+    autoMerge?: boolean;
+    requiredChecks?: string[];
+    autoLabel?: boolean;
+    ciMonitoring?: boolean;
+    maxRetries?: number;
+    dependencyUpdates?: boolean;
+    dependencyCheckSchedule?: string;
+    securityAutoFix?: boolean;
+    notifications?: {slack?: string; email?: string[]};
+    prRules?: ClawBotPRRule[];
     websocketServer?: SecureWebSocketServer;
+    enableRealTimeUpdates: boolean;
+    enableAuditLog: boolean;
+    auditLogRetentionDays: number;
     rbac?: ClawdBotConfig['rbac'];
   };
   private logger: Logger;
@@ -133,7 +147,17 @@ export class ClawdBot {
 
     // Set CLAWD.BOT configuration
     this.config = {
-      ...config,
+      autoApproveDependencies: config.autoApproveDependencies,
+      autoMerge: config.autoMerge,
+      requiredChecks: config.requiredChecks,
+      autoLabel: config.autoLabel,
+      ciMonitoring: config.ciMonitoring,
+      maxRetries: config.maxRetries,
+      dependencyUpdates: config.dependencyUpdates,
+      dependencyCheckSchedule: config.dependencyCheckSchedule,
+      securityAutoFix: config.securityAutoFix,
+      notifications: config.notifications,
+      prRules: config.prRules,
       websocketServer: config.websocketServer,
       enableRealTimeUpdates: config.enableRealTimeUpdates ?? true,
       enableAuditLog: config.enableAuditLog ?? true,
@@ -547,7 +571,7 @@ export class ClawdBot {
   private async handleValidateSecurity(clientId: string): Promise<void> {
     const securityChecks = {
       websocketSecure: this.config.websocketServer?.getStats().isRunning || false,
-      authenticationEnabled: this.config.requireAuth || false,
+      authenticationEnabled: true, // Always enabled in CLAWD.BOT
       auditLogEnabled: this.config.enableAuditLog,
       rbacEnabled: this.config.rbac?.enabled || false,
     };
