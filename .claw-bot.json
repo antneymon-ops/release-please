@@ -1,0 +1,77 @@
+{
+  "$schema": "./schemas/claw-bot-config.json",
+  "autoApproveDependencies": true,
+  "autoMerge": true,
+  "requiredChecks": [
+    "build",
+    "test",
+    "lint",
+    "security-scan"
+  ],
+  "autoLabel": true,
+  "ciMonitoring": true,
+  "maxRetries": 2,
+  "dependencyUpdates": true,
+  "dependencyCheckSchedule": "0 0 * * 1",
+  "securityAutoFix": true,
+  "notifications": {
+    "slack": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+  },
+  "prRules": [
+    {
+      "name": "Auto-approve documentation changes",
+      "condition": {
+        "filesPattern": "\\.(md|txt)$",
+        "labelsInclude": ["documentation"]
+      },
+      "actions": {
+        "autoApprove": true,
+        "addLabels": ["auto-approved"]
+      }
+    },
+    {
+      "name": "Request security review for auth changes",
+      "condition": {
+        "filesPattern": "auth|security|permission",
+        "titlePattern": "auth|security"
+      },
+      "actions": {
+        "requestReviewers": ["security-team"],
+        "addLabels": ["security-review-required"],
+        "comment": "🔒 This PR modifies security-related code and requires review from the security team."
+      }
+    },
+    {
+      "name": "Auto-merge dependency updates from trusted bots",
+      "condition": {
+        "author": "dependabot",
+        "labelsInclude": ["dependencies"]
+      },
+      "actions": {
+        "autoApprove": true,
+        "autoMerge": true,
+        "addLabels": ["auto-merged"]
+      }
+    },
+    {
+      "name": "Label performance improvements",
+      "condition": {
+        "titlePattern": "^perf(\\(.*\\))?:"
+      },
+      "actions": {
+        "addLabels": ["type: performance", "priority: high"],
+        "requestReviewers": ["performance-team"]
+      }
+    },
+    {
+      "name": "Label breaking changes",
+      "condition": {
+        "titlePattern": "!:"
+      },
+      "actions": {
+        "addLabels": ["breaking-change", "priority: critical"],
+        "comment": "⚠️ This PR contains breaking changes. Please ensure proper versioning and communication."
+      }
+    }
+  ]
+}
