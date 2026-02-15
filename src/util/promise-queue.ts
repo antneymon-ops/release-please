@@ -24,7 +24,7 @@ export async function promiseQueue<T, R>(
   asyncFn: (item: T) => Promise<R>,
   concurrency: number
 ): Promise<R[]> {
-  const results: R[] = [];
+  const results: R[] = new Array(items.length);
   const executing: Promise<void>[] = [];
 
   for (let i = 0; i < items.length; i++) {
@@ -35,17 +35,13 @@ export async function promiseQueue<T, R>(
       results[index] = result;
     });
 
-    results[index] = promise as unknown as R;
+    const e: Promise<void> = promise.then(() => {
+      executing.splice(executing.indexOf(e), 1);
+    });
+    executing.push(e);
 
-    if (concurrency <= items.length) {
-      const e: Promise<void> = promise.then(() => {
-        executing.splice(executing.indexOf(e), 1);
-      });
-      executing.push(e);
-
-      if (executing.length >= concurrency) {
-        await Promise.race(executing);
-      }
+    if (executing.length >= concurrency) {
+      await Promise.race(executing);
     }
   }
 

@@ -525,7 +525,7 @@ export class GitHub {
       if (mergePullRequest) {
         // We cannot directly fetch files on commits via graphql, only provide file
         // information for commits with associated pull requests
-        let files = (mergePullRequest.files?.nodes || []).map(
+        const files = (mergePullRequest.files?.nodes || []).map(
           (node: {path: string}) => node.path
         );
         if (
@@ -543,8 +543,7 @@ export class GitHub {
                 mergePullRequest.number,
                 cursor
               );
-            // Use concat instead of spread operator for better performance
-            files = files.concat(pagedFiles);
+            files.push(...pagedFiles);
             cursor = pageInfo.endCursor;
             hasNextPage = pageInfo.hasNextPage;
           }
