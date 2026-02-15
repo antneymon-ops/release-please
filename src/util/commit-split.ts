@@ -52,9 +52,11 @@ export class CommitSplit {
   includeEmpty: boolean;
   packagePaths?: string[];
   private packagePathsSet?: Set<string>;
+  private pathCache: Map<string, string | undefined>;
   constructor(opts?: CommitSplitOptions) {
     opts = opts || {};
     this.includeEmpty = !!opts.includeEmpty;
+    this.pathCache = new Map();
     if (opts.packagePaths) {
       const paths: string[] = normalizePaths(opts.packagePaths);
       this.packagePaths = paths
@@ -66,6 +68,53 @@ export class CommitSplit {
         .sort((a, b) => b.length - a.length); // sort by longest paths first
       this.packagePathsSet = new Set(this.packagePaths);
     }
+  }
+
+  /**
+   * Find the package path for a given file, with caching for performance
+   * @param {string} file File path to check
+   * @returns {string | undefined} Package path or undefined if not found
+   */
+  private findPackagePath(file: string): string | undefined {
+    // Check cache first
+    if (this.pathCache.has(file)) {
+      return this.pathCache.get(file);
+    }
+
+    let pkgName: string | undefined;
+    // NOTE: GitHub API always returns paths using the `/` separator,
+    // regardless of what platform the client code is running on
+    const splitPath = file.split('/');
+    
+    // indicates that we have a top-level file and not a folder
+    // in this edge-case we should not attempt to update the path.
+    if (splitPath.length === 1) {
+      this.pathCache.set(file, undefined);
+      return undefined;
+    }
+
+    if (this.packagePathsSet) {
+      // only track paths under this.packagePaths
+      // we iterate through the path parts to find the longest matching
+      // package path.
+      for (let i = splitPath.length - 1; i > 0; i--) {
+        const packagePath = splitPath.slice(0, i).join('/');
+        if (this.packagePathsSet.has(packagePath)) {
+          pkgName = packagePath;
+          break;
+        }
+      }
+    } else if (this.packagePaths) {
+      // only track paths under this.packagePaths
+      pkgName = this.packagePaths.find(p => file.indexOf(`${p}/`) === 0);
+    } else {
+      // track paths by top level folder
+      pkgName = splitPath[0];
+    }
+
+    // Cache the result
+    this.pathCache.set(file, pkgName);
+    return pkgName;
   }
 
   /**
@@ -88,32 +137,8 @@ export class CommitSplit {
       const dedupe: Set<string> = new Set();
       for (let i = 0; i < commit.files.length; i++) {
         const file: string = commit.files[i];
-        // NOTE: GitHub API always returns paths using the `/` separator,
-        // regardless of what platform the client code is running on
-        const splitPath = file.split('/');
-        // indicates that we have a top-level file and not a folder
-        // in this edge-case we should not attempt to update the path.
-        if (splitPath.length === 1) continue;
-
-        let pkgName;
-        if (this.packagePathsSet) {
-          // only track paths under this.packagePaths
-          // we iterate through the path parts to find the longest matching
-          // package path.
-          for (let i = splitPath.length - 1; i > 0; i--) {
-            const packagePath = splitPath.slice(0, i).join('/');
-            if (this.packagePathsSet.has(packagePath)) {
-              pkgName = packagePath;
-              break;
-            }
-          }
-        } else if (this.packagePaths) {
-          // only track paths under this.packagePaths
-          pkgName = this.packagePaths.find(p => file.indexOf(`${p}/`) === 0);
-        } else {
-          // track paths by top level folder
-          pkgName = splitPath[0];
-        }
+        const pkgName = this.findPackagePath(file);
+        
         if (!pkgName || dedupe.has(pkgName)) continue;
         else dedupe.add(pkgName);
         if (!splitCommits[pkgName]) splitCommits[pkgName] = [];
