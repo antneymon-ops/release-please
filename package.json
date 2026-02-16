@@ -92,6 +92,7 @@
     "detect-indent": "^6.1.0",
     "diff": "^7.0.0",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.2.1",
     "figures": "^3.0.0",
     "http-proxy-agent": "^7.0.0",
     "https-proxy-agent": "^7.0.0",

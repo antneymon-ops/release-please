@@ -2,6 +2,7 @@ const express = require('express');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const rateLimit = require('express-rate-limit');
 
 // Time constants for better readability
 const HOURS_TO_MS = 60 * 60 * 1000;
@@ -15,6 +16,16 @@ const io = new Server(httpServer, {
     methods: ['GET', 'POST'],
   },
 });
+
+// Rate limiting middleware
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.',
+});
+
+// Apply rate limiting to all routes
+app.use(limiter);
 
 // Serve static files from the frontend dist folder
 app.use(express.static(path.join(__dirname, 'frontend/dist')));
