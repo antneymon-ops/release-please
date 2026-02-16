@@ -4,7 +4,6 @@ import { GitBranch, Package, Users, TrendingUp, Activity, Clock } from 'lucide-r
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { Skeleton } from '@/components/ui/Loading';
 import { useNotifications } from '@/contexts/NotificationContext';
 
 export const Dashboard: React.FC = () => {
@@ -144,7 +143,7 @@ export const Dashboard: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {recentReleases.map((release, index) => (
+                {recentReleases.map((release) => (
                   <div
                     key={release.version}
                     className="flex items-start gap-3 p-3 rounded-lg hover:bg-accent transition-colors cursor-pointer"

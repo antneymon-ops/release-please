@@ -44,8 +44,10 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       lg: 'h-12 px-6 text-lg',
     };
 
+    const MotionButton = motion.button;
+    
     return (
-      <motion.button
+      <MotionButton
         ref={ref}
         className={cn(
           baseStyles,
@@ -57,7 +59,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={disabled || isLoading}
         whileHover={{ scale: variant !== 'link' ? 1.02 : 1 }}
         whileTap={{ scale: variant !== 'link' ? 0.98 : 1 }}
-        {...props}
+        {...(props as any)}
       >
         {isLoading && (
           <svg
@@ -84,7 +86,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {!isLoading && leftIcon}
         {children}
         {!isLoading && rightIcon}
-      </motion.button>
+      </MotionButton>
     );
   }
 );

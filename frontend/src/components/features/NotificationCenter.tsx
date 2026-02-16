@@ -45,9 +45,9 @@ export const NotificationCenter: React.FC = () => {
             {/* Panel */}
             <motion.div
               className="fixed md:absolute right-0 md:right-auto top-0 md:top-full md:mt-2 w-full md:w-96 h-full md:h-auto md:max-h-[600px] bg-background border border-border rounded-none md:rounded-lg shadow-2xl z-[1010] flex flex-col"
-              initial={{ opacity: 0, x: 100, md: { x: 0, y: -20 } }}
+              initial={{ opacity: 0, x: 100 }}
               animate={{ opacity: 1, x: 0, y: 0 }}
-              exit={{ opacity: 0, x: 100, md: { x: 0, y: -20 } }}
+              exit={{ opacity: 0, x: 100 }}
               transition={{ duration: 0.2 }}
             >
               {/* Header */}

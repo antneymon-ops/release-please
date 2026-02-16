@@ -3,7 +3,7 @@ import { Moon, Sun, Settings, Menu } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useSocket } from '@/contexts/SocketContext';
 import { Button } from '@/components/ui/Button';
-import { Badge, StatusBadge } from '@/components/ui/Badge';
+import { StatusBadge } from '@/components/ui/Badge';
 import { Avatar } from '@/components/ui/Avatar';
 import { NotificationCenter } from '@/components/features/NotificationCenter';
 

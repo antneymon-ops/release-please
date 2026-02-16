@@ -6,7 +6,6 @@ import { SocketProvider } from './contexts/SocketContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { CommandPalette } from './components/ui/CommandPalette';
-import { NotificationCenter } from './components/features/NotificationCenter';
 import { Dashboard } from './pages/Dashboard';
 import { Header } from './components/layout/Header';
 
