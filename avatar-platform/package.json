@@ -1,0 +1,48 @@
+{
+  "name": "release-please-avatar-platform",
+  "version": "1.0.0",
+  "description": "Comprehensive avatar creation platform with AI, gamification, and multi-platform export",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "mocha --require ts-node/register test/**/*.test.ts",
+    "lint": "eslint src/**/*.ts",
+    "clean": "rm -rf build"
+  },
+  "keywords": [
+    "avatar",
+    "3d",
+    "ai",
+    "generation",
+    "export",
+    "unity",
+    "unreal",
+    "vrchat",
+    "gamification",
+    "collaboration"
+  ],
+  "author": "Avatar Platform Team",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/antneymon-ops/release-please",
+    "directory": "avatar-platform"
+  },
+  "bugs": {
+    "url": "https://github.com/antneymon-ops/release-please/issues"
+  },
+  "homepage": "https://github.com/antneymon-ops/release-please/tree/main/avatar-platform#readme",
+  "files": [
+    "build",
+    "config",
+    "schemas",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "peerDependencies": {
+    "typescript": "^4.6.4"
+  }
+}

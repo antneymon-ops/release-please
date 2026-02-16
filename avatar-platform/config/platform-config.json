@@ -1,0 +1,313 @@
+{
+  "$schema": "../schemas/platform-config.schema.json",
+  "enabled": true,
+  "version": "1.0.0",
+  "features": {
+    "gamification": {
+      "enabled": true,
+      "achievements": true,
+      "levels": true,
+      "streaks": true,
+      "challenges": true,
+      "leaderboards": true
+    },
+    "social": {
+      "enabled": true,
+      "gallery": true,
+      "comments": true,
+      "likes": true,
+      "follows": true,
+      "marketplace": true,
+      "collaboration": true
+    },
+    "ai": {
+      "enabled": true,
+      "photoToAvatar": true,
+      "styleMixing": true,
+      "moodBased": true,
+      "storyToAvatar": true,
+      "ageProgression": true,
+      "autoEnhancement": true,
+      "provider": "openai"
+    },
+    "professional": {
+      "enabled": true,
+      "teamWorkspaces": true,
+      "versionControl": true,
+      "approvalWorkflows": true,
+      "pipelineIntegration": true,
+      "customBranding": true
+    },
+    "mobile": {
+      "enabled": true,
+      "pwa": true,
+      "nativeApps": true,
+      "arPreview": true,
+      "offlineSync": true
+    },
+    "analytics": {
+      "enabled": true,
+      "userMetrics": true,
+      "performanceInsights": true,
+      "engagementTracking": true
+    }
+  },
+  "tiers": {
+    "free": {
+      "name": "Free",
+      "price": 0,
+      "limits": {
+        "avatarsPerMonth": 10,
+        "storage": "1GB",
+        "collaborators": 0,
+        "exports": ["Unity", "Unreal", "VRChat", "FBX", "GLB"]
+      },
+      "features": {
+        "basicAssets": true,
+        "communityGallery": true,
+        "standardExport": true,
+        "watermarked": true
+      }
+    },
+    "premium": {
+      "name": "Premium",
+      "price": 15,
+      "currency": "USD",
+      "billingPeriod": "month",
+      "limits": {
+        "avatarsPerMonth": "unlimited",
+        "storage": "100GB",
+        "collaborators": 5,
+        "exports": "all"
+      },
+      "features": {
+        "fullAssetLibrary": true,
+        "advancedAI": true,
+        "collaboration": true,
+        "priorityRendering": true,
+        "noWatermark": true,
+        "customTemplates": true
+      }
+    },
+    "pro": {
+      "name": "Pro",
+      "price": 49,
+      "currency": "USD",
+      "billingPeriod": "month",
+      "limits": {
+        "avatarsPerMonth": "unlimited",
+        "storage": "1TB",
+        "collaborators": 10,
+        "exports": "all"
+      },
+      "features": {
+        "teamWorkspaces": true,
+        "apiAccess": true,
+        "customBranding": true,
+        "dedicatedSupport": true,
+        "advancedAnalytics": true,
+        "whiteLabelOptions": true,
+        "slaGuarantee": "99.9%"
+      }
+    },
+    "enterprise": {
+      "name": "Enterprise",
+      "price": "custom",
+      "limits": {
+        "avatarsPerMonth": "unlimited",
+        "storage": "unlimited",
+        "collaborators": "unlimited",
+        "exports": "all"
+      },
+      "features": {
+        "onPremiseDeployment": true,
+        "customIntegrations": true,
+        "trainingOnboarding": true,
+        "customFeatureDevelopment": true,
+        "prioritySupport": "24/7",
+        "slaGuarantee": "99.99%"
+      }
+    }
+  },
+  "exportPlatforms": [
+    {
+      "id": "unity",
+      "name": "Unity",
+      "formats": ["fbx", "prefab"],
+      "features": ["rigging", "animations", "materials"]
+    },
+    {
+      "id": "unreal",
+      "name": "Unreal Engine",
+      "formats": ["fbx", "uasset"],
+      "features": ["metahuman-compatible", "animations", "materials"]
+    },
+    {
+      "id": "vrchat",
+      "name": "VRChat",
+      "formats": ["vrm", "fbx"],
+      "features": ["avatar3.0", "expressions", "animations"]
+    },
+    {
+      "id": "roblox",
+      "name": "Roblox",
+      "formats": ["rbxm", "fbx"],
+      "features": ["r15-rigging", "layered-clothing"]
+    },
+    {
+      "id": "decentraland",
+      "name": "Decentraland",
+      "formats": ["glb"],
+      "features": ["wearables", "animations"]
+    },
+    {
+      "id": "readyplayerme",
+      "name": "Ready Player Me",
+      "formats": ["glb"],
+      "features": ["half-body", "full-body"]
+    },
+    {
+      "id": "vrm",
+      "name": "VRM Format",
+      "formats": ["vrm"],
+      "features": ["universal", "expressions"]
+    },
+    {
+      "id": "fbx",
+      "name": "FBX",
+      "formats": ["fbx"],
+      "features": ["universal", "animations", "materials"]
+    },
+    {
+      "id": "obj",
+      "name": "OBJ",
+      "formats": ["obj", "mtl"],
+      "features": ["static-mesh", "materials"]
+    },
+    {
+      "id": "glb",
+      "name": "GLB/GLTF",
+      "formats": ["glb", "gltf"],
+      "features": ["web-optimized", "animations", "materials"]
+    },
+    {
+      "id": "usd",
+      "name": "USD Format",
+      "formats": ["usd", "usda", "usdc"],
+      "features": ["pixar-standard", "animations", "materials"]
+    },
+    {
+      "id": "blender",
+      "name": "Blender",
+      "formats": ["blend", "fbx"],
+      "features": ["native-support", "materials", "rigging"]
+    },
+    {
+      "id": "maya",
+      "name": "Autodesk Maya",
+      "formats": ["ma", "mb", "fbx"],
+      "features": ["native-support", "rigging", "animations"]
+    },
+    {
+      "id": "3dsmax",
+      "name": "3ds Max",
+      "formats": ["max", "fbx"],
+      "features": ["native-support", "materials", "rigging"]
+    },
+    {
+      "id": "cinema4d",
+      "name": "Cinema 4D",
+      "formats": ["c4d", "fbx"],
+      "features": ["native-support", "materials", "animations"]
+    },
+    {
+      "id": "houdini",
+      "name": "Houdini",
+      "formats": ["hip", "fbx", "usd"],
+      "features": ["procedural", "materials", "animations"]
+    }
+  ],
+  "gamification": {
+    "achievements": [
+      {
+        "id": "first_avatar",
+        "name": "First Avatar Created",
+        "description": "Create your first avatar",
+        "xp": 100,
+        "icon": "🎨"
+      },
+      {
+        "id": "master_collaborator",
+        "name": "Master Collaborator",
+        "description": "Complete 10 collaborative sessions",
+        "xp": 500,
+        "icon": "🤝"
+      },
+      {
+        "id": "speed_creator",
+        "name": "Speed Creator",
+        "description": "Create an avatar in under 2 minutes",
+        "xp": 250,
+        "icon": "⚡"
+      },
+      {
+        "id": "style_pioneer",
+        "name": "Style Pioneer",
+        "description": "Try 50 different styles",
+        "xp": 750,
+        "icon": "🎭"
+      },
+      {
+        "id": "community_hero",
+        "name": "Community Hero",
+        "description": "Help 10 other users",
+        "xp": 1000,
+        "icon": "🦸"
+      }
+    ],
+    "levels": [
+      {"level": 1, "name": "Novice", "minXP": 0, "maxXP": 500},
+      {"level": 2, "name": "Apprentice", "minXP": 500, "maxXP": 1500},
+      {"level": 3, "name": "Creator", "minXP": 1500, "maxXP": 3000},
+      {"level": 4, "name": "Artist", "minXP": 3000, "maxXP": 5000},
+      {"level": 5, "name": "Master", "minXP": 5000, "maxXP": 10000},
+      {"level": 6, "name": "Legend", "minXP": 10000, "maxXP": null}
+    ],
+    "streaks": {
+      "daily": {
+        "enabled": true,
+        "rewards": {
+          "3": {"type": "bonus_export", "value": 1},
+          "7": {"type": "premium_feature", "value": "24h"},
+          "30": {"type": "badge", "value": "streak_master"}
+        }
+      }
+    }
+  },
+  "performance": {
+    "targets": {
+      "avatarGeneration": "5s",
+      "previewLatency": "200ms",
+      "exportTime": "30s",
+      "uptime": "99.9%"
+    },
+    "qualityModes": {
+      "draft": {"speed": "fast", "quality": "low"},
+      "standard": {"speed": "medium", "quality": "medium"},
+      "professional": {"speed": "slow", "quality": "high"},
+      "ultra": {"speed": "very-slow", "quality": "ultra", "premiumOnly": true}
+    }
+  },
+  "security": {
+    "authentication": {
+      "providers": ["email", "google", "github", "microsoft"],
+      "twoFactorAuth": true
+    },
+    "privacy": {
+      "gdprCompliant": true,
+      "ccpaCompliant": true,
+      "endToEndEncryption": true,
+      "dataExportEnabled": true
+    }
+  }
+}

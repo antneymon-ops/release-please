@@ -1,0 +1,249 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/antneymon-ops/release-please/avatar-platform/schemas/platform-config.schema.json",
+  "title": "Avatar Platform Configuration",
+  "description": "Configuration schema for the avatar creation platform",
+  "type": "object",
+  "required": ["enabled", "version", "features", "tiers"],
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "description": "Enable or disable the avatar platform module"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Platform configuration version"
+    },
+    "features": {
+      "type": "object",
+      "description": "Feature flags for platform capabilities",
+      "properties": {
+        "gamification": {
+          "type": "object",
+          "properties": {
+            "enabled": {"type": "boolean"},
+            "achievements": {"type": "boolean"},
+            "levels": {"type": "boolean"},
+            "streaks": {"type": "boolean"},
+            "challenges": {"type": "boolean"},
+            "leaderboards": {"type": "boolean"}
+          }
+        },
+        "social": {
+          "type": "object",
+          "properties": {
+            "enabled": {"type": "boolean"},
+            "gallery": {"type": "boolean"},
+            "comments": {"type": "boolean"},
+            "likes": {"type": "boolean"},
+            "follows": {"type": "boolean"},
+            "marketplace": {"type": "boolean"},
+            "collaboration": {"type": "boolean"}
+          }
+        },
+        "ai": {
+          "type": "object",
+          "properties": {
+            "enabled": {"type": "boolean"},
+            "photoToAvatar": {"type": "boolean"},
+            "styleMixing": {"type": "boolean"},
+            "moodBased": {"type": "boolean"},
+            "storyToAvatar": {"type": "boolean"},
+            "ageProgression": {"type": "boolean"},
+            "autoEnhancement": {"type": "boolean"},
+            "provider": {
+              "type": "string",
+              "enum": ["openai", "anthropic", "custom"]
+            }
+          }
+        },
+        "professional": {
+          "type": "object",
+          "properties": {
+            "enabled": {"type": "boolean"},
+            "teamWorkspaces": {"type": "boolean"},
+            "versionControl": {"type": "boolean"},
+            "approvalWorkflows": {"type": "boolean"},
+            "pipelineIntegration": {"type": "boolean"},
+            "customBranding": {"type": "boolean"}
+          }
+        },
+        "mobile": {
+          "type": "object",
+          "properties": {
+            "enabled": {"type": "boolean"},
+            "pwa": {"type": "boolean"},
+            "nativeApps": {"type": "boolean"},
+            "arPreview": {"type": "boolean"},
+            "offlineSync": {"type": "boolean"}
+          }
+        },
+        "analytics": {
+          "type": "object",
+          "properties": {
+            "enabled": {"type": "boolean"},
+            "userMetrics": {"type": "boolean"},
+            "performanceInsights": {"type": "boolean"},
+            "engagementTracking": {"type": "boolean"}
+          }
+        }
+      }
+    },
+    "tiers": {
+      "type": "object",
+      "description": "Subscription tiers and pricing",
+      "properties": {
+        "free": {"$ref": "#/definitions/tier"},
+        "premium": {"$ref": "#/definitions/tier"},
+        "pro": {"$ref": "#/definitions/tier"},
+        "enterprise": {"$ref": "#/definitions/tier"}
+      }
+    },
+    "exportPlatforms": {
+      "type": "array",
+      "description": "Supported export platforms",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string"},
+          "name": {"type": "string"},
+          "formats": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "features": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        },
+        "required": ["id", "name", "formats"]
+      }
+    },
+    "gamification": {
+      "type": "object",
+      "properties": {
+        "achievements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {"type": "string"},
+              "name": {"type": "string"},
+              "description": {"type": "string"},
+              "xp": {"type": "number"},
+              "icon": {"type": "string"}
+            },
+            "required": ["id", "name", "description", "xp"]
+          }
+        },
+        "levels": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "level": {"type": "number"},
+              "name": {"type": "string"},
+              "minXP": {"type": "number"},
+              "maxXP": {"type": ["number", "null"]}
+            },
+            "required": ["level", "name", "minXP"]
+          }
+        },
+        "streaks": {
+          "type": "object",
+          "properties": {
+            "daily": {
+              "type": "object",
+              "properties": {
+                "enabled": {"type": "boolean"},
+                "rewards": {"type": "object"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "properties": {
+        "targets": {
+          "type": "object",
+          "properties": {
+            "avatarGeneration": {"type": "string"},
+            "previewLatency": {"type": "string"},
+            "exportTime": {"type": "string"},
+            "uptime": {"type": "string"}
+          }
+        },
+        "qualityModes": {"type": "object"}
+      }
+    },
+    "security": {
+      "type": "object",
+      "properties": {
+        "authentication": {
+          "type": "object",
+          "properties": {
+            "providers": {
+              "type": "array",
+              "items": {"type": "string"}
+            },
+            "twoFactorAuth": {"type": "boolean"}
+          }
+        },
+        "privacy": {
+          "type": "object",
+          "properties": {
+            "gdprCompliant": {"type": "boolean"},
+            "ccpaCompliant": {"type": "boolean"},
+            "endToEndEncryption": {"type": "boolean"},
+            "dataExportEnabled": {"type": "boolean"}
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "tier": {
+      "type": "object",
+      "properties": {
+        "name": {"type": "string"},
+        "price": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string", "enum": ["custom"]}
+          ]
+        },
+        "currency": {"type": "string"},
+        "billingPeriod": {"type": "string"},
+        "limits": {
+          "type": "object",
+          "properties": {
+            "avatarsPerMonth": {
+              "oneOf": [
+                {"type": "number"},
+                {"type": "string", "enum": ["unlimited"]}
+              ]
+            },
+            "storage": {"type": "string"},
+            "collaborators": {
+              "oneOf": [
+                {"type": "number"},
+                {"type": "string", "enum": ["unlimited"]}
+              ]
+            },
+            "exports": {
+              "oneOf": [
+                {"type": "array", "items": {"type": "string"}},
+                {"type": "string", "enum": ["all"]}
+              ]
+            }
+          }
+        },
+        "features": {"type": "object"}
+      },
+      "required": ["name", "price", "limits", "features"]
+    }
+  }
+}
