@@ -28,13 +28,22 @@ interface NotificationContextType {
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
+// Use crypto.randomUUID() for secure unique ID generation
+const generateId = (): string => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for older browsers
+  return `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+};
+
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   const showNotification = useCallback((notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => {
     const newNotification: Notification = {
       ...notification,
-      id: `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: generateId(),
       timestamp: new Date(),
       read: false,
     };

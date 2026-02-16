@@ -57,20 +57,24 @@ export const useResponsive = () => {
 };
 
 export const useMediaQuery = (query: string): boolean => {
-  const [matches, setMatches] = useState(false);
+  const getMatches = (q: string): boolean => {
+    if (typeof window !== 'undefined') {
+      return window.matchMedia(q).matches;
+    }
+    return false;
+  };
+
+  const [matches, setMatches] = useState(() => getMatches(query));
 
   useEffect(() => {
-    const media = window.matchMedia(query);
+    const mediaQuery = window.matchMedia(query);
     
-    if (media.matches !== matches) {
-      setMatches(media.matches);
-    }
-
-    const listener = () => setMatches(media.matches);
-    media.addEventListener('change', listener);
+    const handleChange = () => setMatches(mediaQuery.matches);
     
-    return () => media.removeEventListener('change', listener);
-  }, [matches, query]);
+    mediaQuery.addEventListener('change', handleChange);
+    
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, [query]);
 
   return matches;
 };

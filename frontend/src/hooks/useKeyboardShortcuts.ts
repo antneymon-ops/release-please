@@ -15,15 +15,20 @@ export const useKeyboardShortcuts = (shortcuts: KeyboardShortcut[]) => {
     (event: KeyboardEvent) => {
       for (const shortcut of shortcuts) {
         const keyMatch = event.key.toLowerCase() === shortcut.key.toLowerCase();
-        const ctrlMatch = shortcut.ctrlKey ? event.ctrlKey : !event.ctrlKey || shortcut.ctrlKey === undefined;
-        const metaMatch = shortcut.metaKey ? event.metaKey : !event.metaKey || shortcut.metaKey === undefined;
-        const shiftMatch = shortcut.shiftKey ? event.shiftKey : !event.shiftKey || shortcut.shiftKey === undefined;
-        const altMatch = shortcut.altKey ? event.altKey : !event.altKey || shortcut.altKey === undefined;
+        
+        // Check modifier keys: only validate if explicitly set
+        const ctrlMatch = shortcut.ctrlKey === undefined ? true : shortcut.ctrlKey === event.ctrlKey;
+        const metaMatch = shortcut.metaKey === undefined ? true : shortcut.metaKey === event.metaKey;
+        const shiftMatch = shortcut.shiftKey === undefined ? true : shortcut.shiftKey === event.shiftKey;
+        const altMatch = shortcut.altKey === undefined ? true : shortcut.altKey === event.altKey;
 
-        // For ctrlOrMeta shortcuts (cross-platform)
-        const ctrlOrMetaMatch = (shortcut.ctrlKey || shortcut.metaKey) && (event.ctrlKey || event.metaKey);
+        // For cross-platform shortcuts (Cmd on Mac, Ctrl on Windows/Linux)
+        // Check if either ctrl or meta is specified, and if so, match either
+        const crossPlatformMatch = (shortcut.ctrlKey || shortcut.metaKey)
+          ? (event.ctrlKey || event.metaKey)
+          : true;
 
-        if (keyMatch && (ctrlOrMetaMatch || (ctrlMatch && metaMatch)) && shiftMatch && altMatch) {
+        if (keyMatch && ctrlMatch && metaMatch && shiftMatch && altMatch && crossPlatformMatch) {
           event.preventDefault();
           shortcut.callback(event);
           break;

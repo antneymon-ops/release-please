@@ -11,13 +11,14 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, type, label, error, helperText, leftIcon, rightIcon, id, ...props }, ref) => {
-    const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
+    const inputId = React.useId();
+    const actualId = id || inputId;
 
     return (
       <div className="w-full">
         {label && (
           <label
-            htmlFor={inputId}
+            htmlFor={actualId}
             className="block text-sm font-medium text-foreground mb-2"
           >
             {label}
@@ -31,7 +32,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           )}
           <input
             type={type}
-            id={inputId}
+            id={actualId}
             className={cn(
               'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm',
               'ring-offset-background placeholder:text-muted-foreground',
@@ -45,7 +46,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             )}
             ref={ref}
             aria-invalid={error ? 'true' : 'false'}
-            aria-describedby={error ? `${inputId}-error` : helperText ? `${inputId}-helper` : undefined}
+            aria-describedby={error ? `${actualId}-error` : helperText ? `${actualId}-helper` : undefined}
             {...props}
           />
           {rightIcon && (
@@ -55,12 +56,12 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           )}
         </div>
         {error && (
-          <p id={`${inputId}-error`} className="mt-1 text-sm text-destructive" role="alert">
+          <p id={`${actualId}-error`} className="mt-1 text-sm text-destructive" role="alert">
             {error}
           </p>
         )}
         {helperText && !error && (
-          <p id={`${inputId}-helper`} className="mt-1 text-sm text-muted-foreground">
+          <p id={`${actualId}-helper`} className="mt-1 text-sm text-muted-foreground">
             {helperText}
           </p>
         )}
@@ -79,20 +80,21 @@ export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextArea
 
 export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ className, label, error, helperText, id, ...props }, ref) => {
-    const textareaId = id || `textarea-${Math.random().toString(36).substr(2, 9)}`;
+    const textareaId = React.useId();
+    const actualId = id || textareaId;
 
     return (
       <div className="w-full">
         {label && (
           <label
-            htmlFor={textareaId}
+            htmlFor={actualId}
             className="block text-sm font-medium text-foreground mb-2"
           >
             {label}
           </label>
         )}
         <textarea
-          id={textareaId}
+          id={actualId}
           className={cn(
             'flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm',
             'ring-offset-background placeholder:text-muted-foreground',
@@ -104,16 +106,16 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           )}
           ref={ref}
           aria-invalid={error ? 'true' : 'false'}
-          aria-describedby={error ? `${textareaId}-error` : helperText ? `${textareaId}-helper` : undefined}
+          aria-describedby={error ? `${actualId}-error` : helperText ? `${actualId}-helper` : undefined}
           {...props}
         />
         {error && (
-          <p id={`${textareaId}-error`} className="mt-1 text-sm text-destructive" role="alert">
+          <p id={`${actualId}-error`} className="mt-1 text-sm text-destructive" role="alert">
             {error}
           </p>
         )}
         {helperText && !error && (
-          <p id={`${textareaId}-helper`} className="mt-1 text-sm text-muted-foreground">
+          <p id={`${actualId}-helper`} className="mt-1 text-sm text-muted-foreground">
             {helperText}
           </p>
         )}

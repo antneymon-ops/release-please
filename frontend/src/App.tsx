@@ -16,8 +16,7 @@ const AppContent: React.FC = () => {
   useKeyboardShortcuts([
     {
       key: 'k',
-      ctrlKey: true,
-      metaKey: true,
+      ctrlKey: true, // This will match Ctrl+K on Windows/Linux OR Cmd+K on Mac
       callback: () => setIsCommandPaletteOpen(true),
       description: 'Open command palette',
     },

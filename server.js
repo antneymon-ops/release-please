@@ -3,6 +3,10 @@ const { createServer } = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 
+// Time constants for better readability
+const HOURS_TO_MS = 60 * 60 * 1000;
+const DAYS_TO_MS = 24 * HOURS_TO_MS;
+
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
@@ -13,7 +17,7 @@ const io = new Server(httpServer, {
 });
 
 // Serve static files from the frontend dist folder
-app.use(express.static(path.join(__dirname, '../frontend/dist')));
+app.use(express.static(path.join(__dirname, 'frontend/dist')));
 
 // API routes
 app.get('/api/health', (req, res) => {
@@ -27,21 +31,21 @@ app.get('/api/releases', (req, res) => {
       {
         id: 1,
         version: 'v2.3.0',
-        date: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+        date: new Date(Date.now() - 2 * HOURS_TO_MS).toISOString(),
         status: 'published',
         changes: 'feat: Add new dashboard UI components',
       },
       {
         id: 2,
         version: 'v2.2.1',
-        date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+        date: new Date(Date.now() - DAYS_TO_MS).toISOString(),
         status: 'published',
         changes: 'fix: Resolve authentication bug',
       },
       {
         id: 3,
         version: 'v2.2.0',
-        date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+        date: new Date(Date.now() - 3 * DAYS_TO_MS).toISOString(),
         status: 'published',
         changes: 'feat: Implement dark mode support',
       },
@@ -91,9 +95,19 @@ setInterval(() => {
   });
 }, 30000);
 
-// Catch-all route to serve the React app
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
+// Handle all routes by serving the React app
+app.use((req, res) => {
+  // Check if it's an API request
+  if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
+    res.status(404).json({ error: 'Not found' });
+  } else {
+    // Serve the React app for all other routes
+    res.sendFile(path.join(__dirname, 'frontend/dist/index.html'), (err) => {
+      if (err) {
+        res.status(500).send('Error loading application');
+      }
+    });
+  }
 });
 
 const PORT = process.env.PORT || 3001;
