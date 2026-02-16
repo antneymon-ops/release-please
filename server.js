@@ -1,0 +1,129 @@
+const express = require('express');
+const { createServer } = require('http');
+const { Server } = require('socket.io');
+const path = require('path');
+const rateLimit = require('express-rate-limit');
+
+// Time constants for better readability
+const HOURS_TO_MS = 60 * 60 * 1000;
+const DAYS_TO_MS = 24 * HOURS_TO_MS;
+
+const app = express();
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    methods: ['GET', 'POST'],
+  },
+});
+
+// Rate limiting middleware
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.',
+});
+
+// Apply rate limiting to all routes
+app.use(limiter);
+
+// Serve static files from the frontend dist folder
+app.use(express.static(path.join(__dirname, 'frontend/dist')));
+
+// API routes
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.get('/api/releases', (req, res) => {
+  // Mock data for demonstration
+  res.json({
+    releases: [
+      {
+        id: 1,
+        version: 'v2.3.0',
+        date: new Date(Date.now() - 2 * HOURS_TO_MS).toISOString(),
+        status: 'published',
+        changes: 'feat: Add new dashboard UI components',
+      },
+      {
+        id: 2,
+        version: 'v2.2.1',
+        date: new Date(Date.now() - DAYS_TO_MS).toISOString(),
+        status: 'published',
+        changes: 'fix: Resolve authentication bug',
+      },
+      {
+        id: 3,
+        version: 'v2.2.0',
+        date: new Date(Date.now() - 3 * DAYS_TO_MS).toISOString(),
+        status: 'published',
+        changes: 'feat: Implement dark mode support',
+      },
+    ],
+  });
+});
+
+app.get('/api/stats', (req, res) => {
+  res.json({
+    totalReleases: 24,
+    activeBranches: 8,
+    teamMembers: 12,
+    releaseRate: '2.4/week',
+  });
+});
+
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log('Client connected:', socket.id);
+
+  // Send welcome message
+  socket.emit('notification', {
+    type: 'info',
+    title: 'Connected to Release Please',
+    message: 'Real-time updates are now active',
+    timestamp: new Date().toISOString(),
+  });
+
+  // Handle client events
+  socket.on('subscribe', (data) => {
+    console.log('Client subscribed to:', data);
+    socket.join(data.channel);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+  });
+});
+
+// Simulate real-time events every 30 seconds
+setInterval(() => {
+  io.emit('notification', {
+    type: 'info',
+    title: 'System Update',
+    message: 'All systems operational',
+    timestamp: new Date().toISOString(),
+  });
+}, 30000);
+
+// Handle all routes by serving the React app
+app.use((req, res) => {
+  // Check if it's an API request
+  if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
+    res.status(404).json({ error: 'Not found' });
+  } else {
+    // Serve the React app for all other routes
+    res.sendFile(path.join(__dirname, 'frontend/dist/index.html'), (err) => {
+      if (err) {
+        res.status(500).send('Error loading application');
+      }
+    });
+  }
+});
+
+const PORT = process.env.PORT || 3001;
+httpServer.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Frontend: http://localhost:${PORT}`);
+  console.log(`API: http://localhost:${PORT}/api`);
+});

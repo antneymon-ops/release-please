@@ -1,5 +1,3 @@
-<img src="https://avatars2.githubusercontent.com/u/2810941?v=3&s=96" alt="Google Cloud Platform logo" title="Google Cloud Platform" align="right" height="96" width="96"/>
-
 # [Release Please](https://github.com/googleapis/release-please)
 
 [![npm version](https://img.shields.io/npm/v/release-please.svg)](https://www.npmjs.org/package/release-please)
@@ -14,6 +12,40 @@ and creating release PRs.
 
 It does not handle publication to package managers or handle complex branch
 management.
+
+## 🎨 New: Comprehensive UX/UI Dashboard
+
+Release Please now includes a modern, feature-rich web interface with:
+
+- ✅ **Modern Design System** - Comprehensive component library with design tokens
+- ✅ **Dark/Light Mode** - Seamless theme switching with system preference detection
+- ✅ **Real-Time Updates** - Socket.IO integration for live notifications
+- ✅ **Responsive Design** - Mobile-first approach, works on all devices
+- ✅ **Command Palette** - Quick access to all actions (⌘K / Ctrl+K)
+- ✅ **Accessibility** - WCAG 2.1 AA compliant with full keyboard navigation
+- ✅ **Notification System** - Multi-channel notifications with toast messages
+- ✅ **Smooth Animations** - Framer Motion powered micro-interactions
+
+### Getting Started with the Dashboard
+
+```bash
+# Install dependencies
+npm install
+cd frontend && npm install
+
+# Start development servers (frontend + backend)
+npm run dev
+
+# Or build and run production server
+npm run start
+```
+
+Visit [http://localhost:3000](http://localhost:3000) to see the dashboard.
+
+📚 See [UX_DOCUMENTATION.md](./UX_DOCUMENTATION.md) for complete details about the UX features.
+📘 See [frontend/STYLE_GUIDE.md](./frontend/STYLE_GUIDE.md) for design system documentation.
+
+---
 
 ## What's a Release PR?
 
