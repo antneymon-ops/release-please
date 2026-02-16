@@ -16,7 +16,7 @@
 
 /**
  * Avatar Platform Type Definitions
- * 
+ *
  * Core types for the avatar creation platform module
  */
 
@@ -199,7 +199,7 @@ export interface Avatar {
   assets: AvatarAssets;
 }
 
-export type AvatarStyle = 
+export type AvatarStyle =
   | 'realistic'
   | 'anime'
   | 'cartoon'

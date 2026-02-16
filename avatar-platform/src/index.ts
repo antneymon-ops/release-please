@@ -16,7 +16,7 @@
 
 /**
  * Avatar Platform Module Entry Point
- * 
+ *
  * Exports all public APIs for the avatar creation platform
  */
 

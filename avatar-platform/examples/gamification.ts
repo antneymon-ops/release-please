@@ -1,6 +1,6 @@
 /**
  * Gamification Example
- * 
+ *
  * This example demonstrates:
  * 1. User profile management
  * 2. Achievement system
@@ -8,13 +8,13 @@
  * 4. Streak tracking
  */
 
-import { createAvatarPlatform } from '../src';
+import {createAvatarPlatform} from '../src';
 
 async function main() {
   const platform = await createAvatarPlatform();
-  
+
   console.log('=== Gamification Example ===\n');
-  
+
   // Get user profile
   console.log('Getting user profile...');
   const profile = await platform.getUserProfile('user-123');
@@ -23,20 +23,20 @@ async function main() {
   console.log(`XP: ${profile.xp}`);
   console.log(`Achievements: ${profile.achievements.length}`);
   console.log(`Followers: ${profile.followers}`);
-  
+
   // Award multiple achievements
   console.log('\nAwarding achievements...');
   const achievementsToAward = [
     'first_avatar',
     'speed_creator',
-    'style_pioneer'
+    'style_pioneer',
   ];
-  
+
   for (const achievementId of achievementsToAward) {
     await platform.awardAchievement('user-123', achievementId);
     console.log(`✓ Awarded: ${achievementId}`);
   }
-  
+
   // Get configuration to show achievement details
   const config = platform.getConfig();
   console.log('\nAvailable Achievements:');
@@ -45,14 +45,14 @@ async function main() {
     console.log(`     ${achievement.description}`);
     console.log(`     XP: ${achievement.xp}`);
   });
-  
+
   // Show level progression
   console.log('\nLevel Progression:');
   config.gamification.levels.forEach(level => {
     console.log(`  Level ${level.level}: ${level.name}`);
     console.log(`     XP Range: ${level.minXP} - ${level.maxXP || '∞'}`);
   });
-  
+
   // Show streak rewards
   console.log('\nStreak Rewards:');
   const streakRewards = config.gamification.streaks.daily.rewards;

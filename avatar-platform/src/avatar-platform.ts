@@ -30,7 +30,7 @@ import {
 
 /**
  * Main Avatar Platform class
- * 
+ *
  * Provides a unified interface for all avatar platform features including:
  * - Avatar generation with AI
  * - Multi-platform export
@@ -41,7 +41,7 @@ import {
  */
 export class AvatarPlatform {
   private config: AvatarPlatformConfig;
-  private initialized: boolean = false;
+  private initialized = false;
 
   constructor(configPath?: string) {
     this.config = this.loadConfig(configPath);
@@ -177,10 +177,7 @@ export class AvatarPlatform {
   /**
    * Get community gallery items
    */
-  async getGalleryItems(
-    page: number = 1,
-    limit: number = 20
-  ): Promise<GalleryItem[]> {
+  async getGalleryItems(page = 1, limit = 20): Promise<GalleryItem[]> {
     this.ensureInitialized();
 
     if (!this.config.features.social.enabled) {
@@ -290,7 +287,9 @@ export class AvatarPlatform {
   private async initializeAI(): Promise<void> {
     if (this.config.features.ai.enabled) {
       // Initialize AI provider (OpenAI, Anthropic, etc.)
-      console.log(`Initializing AI provider: ${this.config.features.ai.provider}`);
+      console.log(
+        `Initializing AI provider: ${this.config.features.ai.provider}`
+      );
     }
   }
 
@@ -317,7 +316,9 @@ export class AvatarPlatform {
 
   private ensureInitialized(): void {
     if (!this.initialized) {
-      throw new Error('Avatar platform not initialized. Call initialize() first.');
+      throw new Error(
+        'Avatar platform not initialized. Call initialize() first.'
+      );
     }
   }
 
