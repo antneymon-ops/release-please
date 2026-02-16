@@ -8,6 +8,20 @@
 Release Please automates CHANGELOG generation, the creation of GitHub releases,
 and version bumps for your projects.
 
+## 🎨 New: Avatar Creation Platform Module
+
+This repository now includes a comprehensive **Avatar Creation Platform** module with advanced features for creating, customizing, and exporting 3D avatars. See the [avatar-platform directory](./avatar-platform) for details.
+
+**Key Features:**
+- 🤖 AI-powered avatar generation from photos (5-second generation)
+- 🎮 Export to 15+ platforms (Unity, Unreal, VRChat, Roblox, and more)
+- 🏆 Gamification system with achievements, levels, and streaks
+- 👥 Real-time collaboration and team workspaces
+- 📱 Mobile-first PWA with AR preview
+- 📊 Analytics dashboard and insights
+
+[Learn more about the Avatar Platform →](./avatar-platform/README.md)
+
 It does so by parsing your
 git history, looking for [Conventional Commit messages](https://www.conventionalcommits.org/),
 and creating release PRs.
