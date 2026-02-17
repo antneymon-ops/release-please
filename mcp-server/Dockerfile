@@ -17,7 +17,7 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
+# Install dependencies (includes patched MCP SDK v1.25.2+ with security fixes)
 RUN npm ci --production
 
 # Copy source code
