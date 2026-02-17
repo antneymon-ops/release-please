@@ -122,6 +122,6 @@ export class AvatarService {
   }
 
   private generateId(): string {
-    return `avatar-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return `avatar-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
   }
 }
