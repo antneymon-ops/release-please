@@ -486,6 +486,31 @@ describe('GitHub', () => {
       req.done();
     });
 
+    it('does not query pull request files unless backfilling', async () => {
+      const graphql = JSON.parse(
+        readFileSync(resolve(fixturesPath, 'commits-since.json'), 'utf8')
+      );
+      req
+        .post(
+          '/graphql',
+          (body: {query?: string}) =>
+            !body.query?.includes('files(first: $maxFilesChanged)')
+        )
+        .reply(200, {
+          data: graphql,
+        });
+      const targetBranch = 'main';
+      const commitsSinceSha = await github.commitsSince(
+        targetBranch,
+        commit => {
+          // this commit is the 2nd most recent
+          return commit.sha === 'b29149f890e6f76ee31ed128585744d4c598924c';
+        }
+      );
+      expect(commitsSinceSha.length).to.eql(1);
+      req.done();
+    });
+
     it('backfills commit files without pull requests', async () => {
       const graphql = JSON.parse(
         readFileSync(resolve(fixturesPath, 'commits-since.json'), 'utf8')

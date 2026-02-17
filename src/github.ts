@@ -109,7 +109,7 @@ interface GraphQLPullRequest {
   mergeCommit?: {
     oid: string;
   };
-  files: {
+  files?: {
     nodes: {
       path: string;
     }[];
@@ -398,7 +398,21 @@ export class GitHub {
     this.logger.debug(
       `Fetching merge commits on branch ${targetBranch} with cursor: ${cursor}`
     );
-    const query = `query pullRequestsSince($owner: String!, $repo: String!, $num: Int!, $maxFilesChanged: Int, $targetBranch: String!, $cursor: String) {
+    const maxFilesChangedVariable = options.backfillFiles
+      ? ', $maxFilesChanged: Int'
+      : '';
+    const filesQuery = options.backfillFiles
+      ? `files(first: $maxFilesChanged) {
+                        nodes {
+                          path
+                        }
+                        pageInfo {
+                          endCursor
+                          hasNextPage
+                        }
+                      }`
+      : '';
+    const query = `query pullRequestsSince($owner: String!, $repo: String!, $num: Int!${maxFilesChangedVariable}, $targetBranch: String!, $cursor: String) {
       repository(owner: $owner, name: $repo) {
         ref(qualifiedName: $targetBranch) {
           target {
@@ -420,15 +434,7 @@ export class GitHub {
                       mergeCommit {
                         oid
                       }
-                      files(first: $maxFilesChanged) {
-                        nodes {
-                          path
-                        }
-                        pageInfo {
-                          endCursor
-                          hasNextPage
-                        }
-                      }
+                      ${filesQuery}
                     }
                   }
                   sha: oid
@@ -450,7 +456,7 @@ export class GitHub {
       repo: this.repository.repo,
       num: 25,
       targetBranch,
-      maxFilesChanged: 100, // max is 100
+      ...(options.backfillFiles ? {maxFilesChanged: 100} : {}),
     };
     const response = await this.graphqlRequest({
       query,
@@ -528,21 +534,16 @@ export class GitHub {
         const files = (mergePullRequest.files?.nodes || []).map(
           (node: {path: string}) => node.path
         );
-        if (
-          mergePullRequest.files?.pageInfo?.hasNextPage &&
-          options.backfillFiles
-        ) {
+        const filePageInfo = mergePullRequest.files?.pageInfo;
+        if (filePageInfo?.hasNextPage && options.backfillFiles) {
           this.logger.info(
             `PR #${mergePullRequest.number} has many files, paginating`
           );
-          let cursor = mergePullRequest.files.pageInfo.endCursor;
-          let hasNextPage: boolean = mergePullRequest.files.pageInfo.hasNextPage;
+          let cursor = filePageInfo.endCursor;
+          let hasNextPage: boolean = filePageInfo.hasNextPage;
           while (hasNextPage && cursor) {
             const {files: pagedFiles, pageInfo} =
-              await this.paginateFilesGraphQL(
-                mergePullRequest.number,
-                cursor
-              );
+              await this.paginateFilesGraphQL(mergePullRequest.number, cursor);
             files.push(...pagedFiles);
             cursor = pageInfo.endCursor;
             hasNextPage = pageInfo.hasNextPage;
