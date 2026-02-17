@@ -14,6 +14,7 @@ Please provide the following details.
   - Node.js version:
   - npm version:
   - `release-please` version:
+  - MCP servers (if relevant):
 
 #### Steps to reproduce
 
