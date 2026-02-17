@@ -1,0 +1,11 @@
+{
+  "servers": {
+    "sonarqube": {
+      "command": ["node", "./mcp-server/dist/index.js"],
+      "env": {
+        "SONARQUBE_URL": "http://localhost:9000",
+        "SONARQUBE_TOKEN": "${SONARQUBE_TOKEN}"
+      }
+    }
+  }
+}
