@@ -2,7 +2,11 @@
  * Storage Service - Handles data storage and retrieval
  */
 
-import {AvatarTemplate, AvatarStyle, AssetLibraryItem} from '../../types/resources';
+import {
+  AvatarTemplate,
+  AvatarStyle,
+  AssetLibraryItem,
+} from '../../types/resources';
 
 export class StorageService {
   private templates: AvatarTemplate[] = [];

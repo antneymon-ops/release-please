@@ -14,15 +14,15 @@ async function main() {
   });
 
   server.log('info', 'Starting MCP Server...');
-  
+
   // Connect via stdio transport
   await createStdioTransport(server);
-  
+
   server.log('info', 'MCP Server is running');
 }
 
 // Handle errors
-process.on('uncaughtException', (error) => {
+process.on('uncaughtException', error => {
   console.error('Uncaught exception:', error);
   process.exit(1);
 });
@@ -34,7 +34,7 @@ process.on('unhandledRejection', (reason, promise) => {
 
 // Start server
 if (require.main === module) {
-  main().catch((error) => {
+  main().catch(error => {
     console.error('Failed to start server:', error);
     process.exit(1);
   });

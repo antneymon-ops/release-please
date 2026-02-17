@@ -80,44 +80,41 @@ export class MCPServer {
 
   private setupHandlers(): void {
     // Resources handlers
-    this.server.setRequestHandler(
-      ListResourcesRequestSchema,
-      async () => {
-        return this.resourceHandlers.listResources();
-      }
-    );
+    this.server.setRequestHandler(ListResourcesRequestSchema, async () => {
+      return this.resourceHandlers.listResources();
+    });
 
-    this.server.setRequestHandler(
-      ReadResourceRequestSchema,
-      async (request) => {
-        return this.resourceHandlers.readResource(request.params.uri);
-      }
-    );
+    this.server.setRequestHandler(ReadResourceRequestSchema, async request => {
+      return this.resourceHandlers.readResource(request.params.uri);
+    });
 
     // Tools handlers
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
       return this.toolHandlers.listTools();
     });
 
-    this.server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
-      const {name, arguments: args} = request.params;
-      
-      // For now, use a default user for testing
-      // In production, extract user from auth context
-      const user: User = {id: 'default-user', tier: 'premium'};
-      
-      // Check permissions
-      this.permissions.requirePermission(name, user);
-      
-      return this.toolHandlers.callTool(name, args || {});
-    });
+    this.server.setRequestHandler(
+      CallToolRequestSchema,
+      async (request, extra) => {
+        const {name, arguments: args} = request.params;
+
+        // For now, use a default user for testing
+        // In production, extract user from auth context
+        const user: User = {id: 'default-user', tier: 'premium'};
+
+        // Check permissions
+        this.permissions.requirePermission(name, user);
+
+        return this.toolHandlers.callTool(name, args || {});
+      }
+    );
 
     // Prompts handlers
     this.server.setRequestHandler(ListPromptsRequestSchema, async () => {
       return this.promptHandlers.listPrompts();
     });
 
-    this.server.setRequestHandler(GetPromptRequestSchema, async (request) => {
+    this.server.setRequestHandler(GetPromptRequestSchema, async request => {
       const {name, arguments: args} = request.params;
       return this.promptHandlers.getPrompt(name, args || {});
     });

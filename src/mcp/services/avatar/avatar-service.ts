@@ -2,7 +2,11 @@
  * Avatar Service - Handles avatar creation and management
  */
 
-import {CreateAvatarArgs, EditAvatarArgs, AvatarResult} from '../../types/tools';
+import {
+  CreateAvatarArgs,
+  EditAvatarArgs,
+  AvatarResult,
+} from '../../types/tools';
 import {UserAvatar} from '../../types/resources';
 
 export class AvatarService {

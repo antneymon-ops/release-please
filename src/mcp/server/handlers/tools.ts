@@ -191,7 +191,11 @@ export class ToolHandlers {
       content: [
         {
           type: 'text',
-          text: `Found ${results.length} avatar(s):\n${JSON.stringify(results, null, 2)}`,
+          text: `Found ${results.length} avatar(s):\n${JSON.stringify(
+            results,
+            null,
+            2
+          )}`,
         },
       ],
     };
@@ -200,9 +204,7 @@ export class ToolHandlers {
   private async applyTemplate(
     args: ApplyTemplateArgs
   ): Promise<CallToolResult> {
-    const template = await this.storageService.getTemplateById(
-      args.templateId
-    );
+    const template = await this.storageService.getTemplateById(args.templateId);
 
     if (!template) {
       throw new Error(`Template not found: ${args.templateId}`);
@@ -210,7 +212,11 @@ export class ToolHandlers {
 
     // Create avatar using template as base
     const createArgs: CreateAvatarArgs = {
-      prompt: `${template.description}${args.customizations ? ` with customizations: ${JSON.stringify(args.customizations)}` : ''}`,
+      prompt: `${template.description}${
+        args.customizations
+          ? ` with customizations: ${JSON.stringify(args.customizations)}`
+          : ''
+      }`,
       style: template.style as CreateAvatarArgs['style'],
     };
 

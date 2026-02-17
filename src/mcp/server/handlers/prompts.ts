@@ -85,9 +85,9 @@ export class PromptHandlers {
     }
   }
 
-  private getCreateCharacterPrompt(
-    args: Record<string, string>
-  ): {messages: MCPMessage[]} {
+  private getCreateCharacterPrompt(args: Record<string, string>): {
+    messages: MCPMessage[];
+  } {
     const setting = args.setting || 'modern';
     const personality = args.personality;
 
@@ -110,9 +110,9 @@ Include details about:
     };
   }
 
-  private getProfessionalHeadshotPrompt(
-    args: Record<string, string>
-  ): {messages: MCPMessage[]} {
+  private getProfessionalHeadshotPrompt(args: Record<string, string>): {
+    messages: MCPMessage[];
+  } {
     const profession = args.profession;
     const style = args.style || 'formal';
 
@@ -126,7 +126,11 @@ Include details about:
 
 Requirements:
 - Professional appearance appropriate for ${profession}
-- ${style === 'formal' ? 'Business attire (suit, professional dress)' : 'Business casual attire'}
+- ${
+              style === 'formal'
+                ? 'Business attire (suit, professional dress)'
+                : 'Business casual attire'
+            }
 - Neutral, confident expression
 - Clean, simple background
 - Photorealistic style`,
@@ -136,9 +140,9 @@ Requirements:
     };
   }
 
-  private getGameCharacterPrompt(
-    args: Record<string, string>
-  ): {messages: MCPMessage[]} {
+  private getGameCharacterPrompt(args: Record<string, string>): {
+    messages: MCPMessage[];
+  } {
     const role = args.role;
     const genre = args.genre;
 

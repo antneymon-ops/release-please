@@ -4,7 +4,12 @@
 
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
-import {MCPTool, MCPResource, MCPPrompt, MCPToolResponse} from '../types/protocol';
+import {
+  MCPTool,
+  MCPResource,
+  MCPPrompt,
+  MCPToolResponse,
+} from '../types/protocol';
 
 export interface MCPClientConfig {
   name: string;

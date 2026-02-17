@@ -1,6 +1,6 @@
 /**
  * Example: MCP Client Usage
- * 
+ *
  * This example demonstrates how to use the MCP client to interact
  * with the Avatar Creation Platform.
  */
