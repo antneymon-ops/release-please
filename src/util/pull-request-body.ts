@@ -25,6 +25,8 @@ interface PullRequestBodyOptions {
   header?: string;
   footer?: string;
   extra?: string;
+  analytics?: string;
+  additionalWaysToImprove?: string[];
   useComponents?: boolean;
 }
 
@@ -32,12 +34,16 @@ export class PullRequestBody {
   header: string;
   footer: string;
   extra?: string;
+  analytics?: string;
+  additionalWaysToImprove?: string[];
   releaseData: ReleaseData[];
   useComponents: boolean;
   constructor(releaseData: ReleaseData[], options?: PullRequestBodyOptions) {
     this.header = options?.header || DEFAULT_HEADER;
     this.footer = options?.footer || DEFAULT_FOOTER;
     this.extra = options?.extra;
+    this.analytics = options?.analytics;
+    this.additionalWaysToImprove = options?.additionalWaysToImprove;
     this.releaseData = releaseData;
     this.useComponents = options?.useComponents ?? this.releaseData.length > 1;
   }
@@ -81,13 +87,26 @@ export class PullRequestBody {
   }
   toString(): string {
     const notes = this.notes();
+    const extraSections = [
+      this.extra?.trim(),
+      this.analytics?.trim()
+        ? `### Analytics Results\n\n${this.analytics.trim()}`
+        : undefined,
+      this.additionalWaysToImprove?.length
+        ? `### Additional Ways to Improve\n\n${this.additionalWaysToImprove
+            .map(wayToImprove => `- ${wayToImprove}`)
+            .join('\n')}`
+        : undefined,
+    ]
+      .filter(extraSection => !!extraSection)
+      .join('\n\n');
     return `${this.header}
 ${NOTES_DELIMITER}
 
 
 ${notes}
 
-${NOTES_DELIMITER}${this.extra ? `\n\n${this.extra}\n` : ''}
+${NOTES_DELIMITER}${extraSections ? `\n\n${extraSections}\n` : ''}
 ${this.footer}`;
   }
 }
