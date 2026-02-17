@@ -193,7 +193,7 @@ export class SonarQubeClient {
         -Dsonar.host.url=${this.baseURL} \
         -Dsonar.projectBaseDir=${repoPath}`;
 
-      const { stdout, stderr } = await execPromise(command, {
+      const { stdout } = await execPromise(command, {
         cwd: repoPath,
         maxBuffer: 1024 * 1024 * 10, // 10MB buffer
       });

@@ -179,7 +179,7 @@ export class AntiPatternDetector {
       chunks.get(chunk)!.push(i);
     }
 
-    chunks.forEach((locations, chunk) => {
+    chunks.forEach((locations) => {
       if (locations.length > 1) {
         patterns.push({
           name: "Duplicate Code",
@@ -283,17 +283,11 @@ export class AntiPatternDetector {
     const lines = content.split("\n");
 
     let currentIndent = 0;
-    let maxIndent = 0;
-    let maxIndentLine = 0;
 
     lines.forEach((line, index) => {
       const indent = line.search(/\S/);
       if (indent > 0) {
         currentIndent = Math.floor(indent / 2); // Assuming 2-space indent
-        if (currentIndent > maxIndent) {
-          maxIndent = currentIndent;
-          maxIndentLine = index + 1;
-        }
       }
 
       if (currentIndent > 4) {

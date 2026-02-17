@@ -164,6 +164,10 @@ class SonarQubeMCPServer {
       const { name, arguments: args } = request.params;
 
       try {
+        if (!args) {
+          throw new Error("Missing arguments");
+        }
+
         switch (name) {
           case "analyze_project":
             return await this.analyzeProject(args.projectKey as string);
