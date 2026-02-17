@@ -261,6 +261,13 @@ Contributions welcome! See the [Contributing Guide](https://github.com/googleapi
 
 For more information on the design of the library, see [design](https://github.com/googleapis/release-please/blob/main/docs/design.md).
 
+## Documentation
+
+For more information about Release Please:
+
+* [Functional Capabilities](https://github.com/googleapis/release-please/blob/main/docs/functional-capabilities.md) - Comprehensive overview of what Release Please can do
+* [Testing and Stress Testing](https://github.com/googleapis/release-please/blob/main/docs/testing-and-stress-testing.md) - Information about testing strategy, coverage, and stress testing recommendations
+
 ## Troubleshooting
 
 For common issues and help troubleshooting your configuration, see [Troubleshooting](https://github.com/googleapis/release-please/blob/main/docs/troubleshooting.md).
