@@ -1,7 +1,7 @@
 {
   "name": "release-please",
   "version": "17.1.1",
-  "description": "generate release PRs based on the conventionalcommits.org spec",
+  "description": "generate release PRs based on the conventionalcommits.org spec to reinforce best practices for creating a first-class platform and aid in accelerating production",
   "main": "./build/src/index.js",
   "bin": "./build/src/bin/release-please.js",
   "scripts": {
