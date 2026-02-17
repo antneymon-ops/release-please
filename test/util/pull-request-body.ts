@@ -198,6 +198,33 @@ describe('PullRequestBody', () => {
       snapshot(pullRequestBody.toString());
     });
 
+    it('can include analytics results and additional ways to improve', () => {
+      const data = [
+        {
+          version: Version.parse('1.2.3'),
+          notes: 'some special notes go here',
+        },
+      ];
+      const pullRequestBody = new PullRequestBody(data, {
+        analytics:
+          'Average lead time is down 10% and release cadence is weekly.',
+        additionalWaysToImprove: [
+          'Increase test coverage around release note parsing',
+          'Automate stale release branch cleanup',
+        ],
+      });
+      const body = pullRequestBody.toString();
+      expect(body).to.contain('### Analytics Results');
+      expect(body).to.contain(
+        'Average lead time is down 10% and release cadence is weekly.'
+      );
+      expect(body).to.contain('### Additional Ways to Improve');
+      expect(body).to.contain(
+        '- Increase test coverage around release note parsing'
+      );
+      expect(body).to.contain('- Automate stale release branch cleanup');
+    });
+
     it('can parse the generated output', () => {
       const data = [
         {
