@@ -135,7 +135,7 @@ export class Merge extends ManifestPlugin {
         path: ROOT_PROJECT_PATH,
         pullRequest,
         config: {
-          releaseType,
+          releaseType: releaseType || 'simple',
         },
       },
       ...outOfScopeCandidates,
