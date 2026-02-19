@@ -75,7 +75,7 @@ describe('MavenWorkspace plugin', () => {
           component: 'multi1',
         }),
       };
-      const graph: DependencyGraph<any> = new Map([
+      const graph: DependencyGraph<ReturnType<typeof buildArtifact>> = new Map([
         [
           'multi1',
           {deps: [], value: buildArtifact('multi1', 'multi1')},
@@ -93,6 +93,7 @@ describe('MavenWorkspace plugin', () => {
       );
 
       expect(packageNames).to.deep.equal(['multi1', 'multi1-sub']);
+      expect(packageNames).to.not.include('other');
     });
   });
   describe('run', () => {
