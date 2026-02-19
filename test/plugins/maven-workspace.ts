@@ -15,6 +15,7 @@
 import {describe, it, afterEach, beforeEach} from 'mocha';
 import * as sinon from 'sinon';
 import {MavenWorkspace} from '../../src/plugins/maven-workspace';
+import {DependencyGraph} from '../../src/plugins/workspace';
 import {GitHub} from '../../src/github';
 import {ManifestPlugin} from '../../src/plugin';
 import {CandidateReleasePullRequest} from '../../src/manifest';
@@ -65,6 +66,35 @@ describe('MavenWorkspace plugin', () => {
   });
   afterEach(() => {
     sandbox.restore();
+  });
+
+  describe('packageNamesToUpdate', () => {
+    it('matches candidate paths using ancestor prefixes efficiently', () => {
+      const candidatesByPackage: Record<string, CandidateReleasePullRequest> = {
+        multi1: buildMockCandidatePullRequest('multi1', 'java-yoshi', '1.0.0', {
+          component: 'multi1',
+        }),
+      };
+      const graph: DependencyGraph<ReturnType<typeof buildArtifact>> = new Map([
+        [
+          'multi1',
+          {deps: [], value: buildArtifact('multi1', 'multi1')},
+        ],
+        [
+          'multi1/submodule',
+          {deps: [], value: buildArtifact('multi1/submodule', 'multi1-sub')},
+        ],
+        ['other', {deps: [], value: buildArtifact('other', 'other')}],
+      ]);
+
+      const packageNames = (plugin as any).packageNamesToUpdate(
+        graph,
+        candidatesByPackage
+      );
+
+      expect(packageNames).to.deep.equal(['multi1', 'multi1-sub']);
+      expect(packageNames).to.not.include('other');
+    });
   });
   describe('run', () => {
     it('handles a single maven package', async () => {
@@ -519,4 +549,18 @@ async function renderUpdate(github: GitHub, update: Update): Promise<string> {
   const fileContents =
     update.cachedFileContents || (await github.getFileContents(update.path));
   return update.updater.updateContent(fileContents.parsedContent);
+}
+
+function buildArtifact(path: string, name: string) {
+  return {
+    groupId: 'g',
+    artifactId: name,
+    version: '0.0.0',
+    path,
+    name,
+    dependencies: [],
+    testDependencies: [],
+    managedDependencies: [],
+    pomContent: '',
+  };
 }
