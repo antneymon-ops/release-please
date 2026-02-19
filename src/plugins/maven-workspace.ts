@@ -187,13 +187,24 @@ export class MavenWorkspace extends WorkspacePlugin<MavenArtifact> {
       const candidatePaths = Object.values(candidatesByPackage).map(
         candidate => candidate.path
       );
+      const candidatePathSet = new Set(candidatePaths);
       // Find artifacts that are in an existing candidate release
       return Array.from(graph.values())
-        .filter(({value}) =>
-          candidatePaths.find(
-            path => value.path === path || value.path.startsWith(`${path}/`)
-          )
-        )
+        .filter(({value}) => {
+          if (candidatePathSet.has(value.path)) {
+            return true;
+          }
+          let currentPath = value.path;
+          let separatorIndex = currentPath.lastIndexOf('/');
+          while (separatorIndex > -1) {
+            currentPath = currentPath.substring(0, separatorIndex);
+            if (candidatePathSet.has(currentPath)) {
+              return true;
+            }
+            separatorIndex = currentPath.lastIndexOf('/');
+          }
+          return false;
+        })
         .map(({value}) => this.packageNameFromPackage(value));
     }
     return super.packageNamesToUpdate(graph, candidatesByPackage);
